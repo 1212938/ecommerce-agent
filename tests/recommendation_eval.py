@@ -352,7 +352,7 @@ class RecommendationEvaluator:
                 RETURN p.id AS id, p.name AS name, c.name AS category
                 LIMIT 20
                 """
-                with self.neo4j_driver.session(default_transaction_timeout=10) as session:
+                with self.neo4j_driver.session() as session:
                     result = session.run(
                         cypher,
                         {
@@ -433,6 +433,57 @@ class RecommendationEvaluator:
                 # LLM 直接推荐返回字符串, 无法提取结构化 ID
                 recommended_items = [{"product": result_str, "id": "llm_direct"}]
 
+            elif strategy == "popularity":
+                # Baseline: 热门商品（无个性化、无模型调用）
+                candidates = self.agent._get_popular_products(top_k * 2)
+                recommended_items = candidates[:top_k]
+
+            elif strategy == "item_cf_only":
+                # Baseline: 仅 Item-CF 协同过滤（无图、无 LLM 重排）
+                candidates = self.agent._item_cf_recommend(
+                    test_case.query, test_case.user_profile, top_k * 2
+                )
+                recommended_items = candidates[:top_k]
+
+            elif strategy == "graph+item_cf":
+                # Baseline: 图协同 + Item-CF 融合（无 LLM 重排）
+                graph_recs = self.agent._graph_based_recommend(
+                    test_case.query, test_case.user_profile, top_k * 2
+                )
+                cf_recs = self.agent._item_cf_recommend(
+                    test_case.query, test_case.user_profile, top_k * 2
+                )
+                seen_ids = set()
+                merged = []
+                for item in graph_recs + cf_recs:
+                    item_id = str(item.get("id", ""))
+                    if item_id and item_id not in seen_ids:
+                        seen_ids.add(item_id)
+                        merged.append(item)
+                recommended_items = merged[:top_k]
+
+            elif strategy == "graph+item_cf+llm_rerank":
+                # 完整管线: 图协同 + Item-CF 融合 → LLM 重排
+                graph_recs = self.agent._graph_based_recommend(
+                    test_case.query, test_case.user_profile, top_k * 2
+                )
+                cf_recs = self.agent._item_cf_recommend(
+                    test_case.query, test_case.user_profile, top_k * 2
+                )
+                seen_ids = set()
+                merged = []
+                for item in graph_recs + cf_recs:
+                    item_id = str(item.get("id", ""))
+                    if item_id and item_id not in seen_ids:
+                        seen_ids.add(item_id)
+                        merged.append(item)
+                if merged:
+                    recommended_items = self.agent._llm_rerank(
+                        test_case.query, merged, test_case.user_profile, top_k
+                    )
+                else:
+                    recommended_items = self.agent._get_popular_products(top_k)
+
         except Exception as e:
             return {"error": f"推荐失败: {e}"}
 
@@ -491,7 +542,13 @@ class RecommendationEvaluator:
         Returns:
             对比报告
         """
-        strategies = strategies or ["graph_only", "graph+llm_rerank"]
+        strategies = strategies or [
+            "popularity",  # Baseline: 热门商品
+            "graph_only",  # Baseline: 仅图协同
+            "item_cf_only",  # Baseline: 仅 Item-CF
+            "graph+item_cf",  # Baseline: 图 + CF 融合，无重排
+            "graph+item_cf+llm_rerank",  # 完整管线（图 + CF + LLM 重排）
+        ]
         all_results = {}
 
         for strategy in strategies:
@@ -738,15 +795,19 @@ def main():
     test_cases = generate_test_cases()
     print(f"\n共 {len(test_cases)} 个测试用例\n")
 
-    # 评估 LLM 重排效果
+    # 评估 LLM 重排效果（graph_only vs graph+llm_rerank 的增量）
     result = evaluator.evaluate_rerank_impact(test_cases)
+
+    # 全策略 baseline 对比
+    baseline = evaluator.compare_strategies(test_cases)
+    result["baseline_comparison"] = baseline.get("comparison", {})
 
     # 打印对比汇总
     print(f"\n{'=' * 60}")
     print("  策略对比汇总")
     print(f"{'=' * 60}")
 
-    comparison = result.get("comparison", {})
+    comparison = baseline.get("comparison", {})
     for strategy, metrics in comparison.items():
         print(f"\n  [{strategy}]")
         if "ranking" in metrics:

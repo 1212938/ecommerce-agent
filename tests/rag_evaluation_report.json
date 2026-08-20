@@ -1,0 +1,656 @@
+{
+  "total_cases": 15,
+  "results": [
+    {
+      "query": "蓝牙耳机",
+      "retrieved_ids": [
+        "P001296",
+        "P000023",
+        "P001478",
+        "P000173",
+        "P000667",
+        "P000329",
+        "P000487",
+        "P000542",
+        "P001064",
+        "P001509"
+      ],
+      "relevant_ids": [
+        "P000487",
+        "P001478",
+        "P000667"
+      ],
+      "retrieval_metrics": {
+        "recall@1": 0.0,
+        "recall@3": 0.3333333333333333,
+        "recall@5": 0.6666666666666666,
+        "precision@5": 0.4,
+        "mrr": 0.3333333333333333,
+        "ndcg@5": 0.41618115554873086,
+        "hit_rate@5": 1.0
+      },
+      "generation_metrics": {
+        "faithfulness": 1.0,
+        "answer_relevance": 0.0,
+        "context_precision": 0.0,
+        "context_recall": 0.0
+      },
+      "retrieval_latency_ms": 105.37,
+      "gen_latency_ms": 842.99,
+      "latency_ms": 948.36,
+      "answer": "🔍 共找到 10 个相关商品：\n\n1. **OPPO手机数码** | 品牌: OPPO | 分类: 手机数码 | 价格: ¥5655.12 | 销量: 3644 | 相似度: 1.3471\n2. **OPPO手机数码** | 品牌: OPPO | 分类: 手机数码 | 价格: ¥2141.07 | 销量: 8625 | 相似度: 1.3471\n3. **OPPO手机数码** | 品牌: OPPO ",
+      "type": "search",
+      "description": "搜索蓝牙耳机"
+    },
+    {
+      "query": "500元以下手机",
+      "retrieved_ids": [
+        "P001805",
+        "P001880",
+        "P000173",
+        "P000872",
+        "P001057",
+        "P001705",
+        "P000489",
+        "P000215",
+        "P001915",
+        "P000975"
+      ],
+      "relevant_ids": [
+        "P001380",
+        "P000542",
+        "P000657",
+        "P001705",
+        "P001883",
+        "P001805",
+        "P000320",
+        "P000975",
+        "P000215",
+        "P001915",
+        "P001057",
+        "P001912",
+        "P000467",
+        "P001880",
+        "P000173",
+        "P000489"
+      ],
+      "retrieval_metrics": {
+        "recall@1": 0.0625,
+        "recall@3": 0.1875,
+        "recall@5": 0.25,
+        "precision@5": 0.8,
+        "mrr": 1.0,
+        "ndcg@5": 0.8539316501572937,
+        "hit_rate@5": 1.0
+      },
+      "generation_metrics": {
+        "faithfulness": 1.0,
+        "answer_relevance": 0.0,
+        "context_precision": 0.5,
+        "context_recall": 0.5
+      },
+      "retrieval_latency_ms": 84.33,
+      "gen_latency_ms": 717.29,
+      "latency_ms": 801.62,
+      "answer": "🔍 共找到 10 个相关商品：\n\n1. **荣耀手机数码** | 品牌: 荣耀 | 分类: 手机数码 | 价格: ¥917.4 | 销量: 1995 | 相似度: 5.3455\n2. **vivo手机数码** | 品牌: vivo | 分类: 手机数码 | 价格: ¥5073.11 | 销量: 8115 | 相似度: 2.6942\n3. **OPPO手机数码** | 品牌: OPPO | 分类: ",
+      "type": "search",
+      "description": "价格过滤搜索"
+    },
+    {
+      "query": "婴儿纸尿裤",
+      "retrieved_ids": [
+        "P001780",
+        "P001305",
+        "P001980",
+        "P001782",
+        "P000051",
+        "P001813",
+        "P000116",
+        "P001077",
+        "P000274",
+        "P001549"
+      ],
+      "relevant_ids": [
+        "P001782",
+        "P001813",
+        "P001305"
+      ],
+      "retrieval_metrics": {
+        "recall@1": 0.0,
+        "recall@3": 0.3333333333333333,
+        "recall@5": 0.6666666666666666,
+        "precision@5": 0.4,
+        "mrr": 0.5,
+        "ndcg@5": 0.49818925746641285,
+        "hit_rate@5": 1.0
+      },
+      "generation_metrics": {
+        "faithfulness": 1.0,
+        "answer_relevance": 0.5,
+        "context_precision": 0.5,
+        "context_recall": 0.5
+      },
+      "retrieval_latency_ms": 81.76,
+      "gen_latency_ms": 837.36,
+      "latency_ms": 919.12,
+      "answer": "🔍 共找到 10 个相关商品：\n\n1. **飞鹤母婴用品** | 品牌: 飞鹤 | 分类: 母婴用品 | 价格: ¥226.67 | 销量: 7752 | 相似度: 1.2502\n2. **帮宝适母婴用品** | 品牌: 帮宝适 | 分类: 母婴用品 | 价格: ¥476.01 | 销量: 6925 | 相似度: 0.4787\n3. **强生母婴用品** | 品牌: 强生 | 分类: 母婴用品 |",
+      "type": "search",
+      "description": "母婴商品搜索"
+    },
+    {
+      "query": "运动鞋",
+      "retrieved_ids": [
+        "P000210",
+        "P000527",
+        "P000496",
+        "P001929",
+        "P000973",
+        "P000064",
+        "P001804",
+        "P000145",
+        "P000277",
+        "P001062"
+      ],
+      "relevant_ids": [
+        "P000527",
+        "P000973",
+        "P001804"
+      ],
+      "retrieval_metrics": {
+        "recall@1": 0.0,
+        "recall@3": 0.3333333333333333,
+        "recall@5": 0.6666666666666666,
+        "precision@5": 0.4,
+        "mrr": 0.5,
+        "ndcg@5": 0.4776237035032179,
+        "hit_rate@5": 1.0
+      },
+      "generation_metrics": {
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "context_precision": 0.5,
+        "context_recall": 1.0
+      },
+      "retrieval_latency_ms": 82.15,
+      "gen_latency_ms": 1072.46,
+      "latency_ms": 1154.6,
+      "answer": "🔍 共找到 10 个相关商品：\n\n1. **安踏运动户外** | 品牌: 安踏 | 分类: 运动户外 | 价格: ¥746.23 | 销量: 3327 | 相似度: 2.6072\n2. **安踏运动户外** | 品牌: 安踏 | 分类: 运动户外 | 价格: ¥298.27 | 销量: 6521 | 相似度: 2.6072\n3. **安踏运动户外** | 品牌: 安踏 | 分类: 运动户外 | 价",
+      "type": "search",
+      "description": "服装鞋包搜索"
+    },
+    {
+      "query": "面膜护肤",
+      "retrieved_ids": [
+        "P000747",
+        "P000248",
+        "P000353",
+        "P000270",
+        "P000418",
+        "P000447",
+        "P001528",
+        "P000943",
+        "P001867",
+        "P001862"
+      ],
+      "relevant_ids": [
+        "P000971",
+        "P000458",
+        "P001528",
+        "P000747",
+        "P000447",
+        "P000372",
+        "P001862",
+        "P000418",
+        "P001867",
+        "P000065",
+        "P000270",
+        "P001091",
+        "P000943",
+        "P001001",
+        "P000834",
+        "P000248",
+        "P000353",
+        "P000757",
+        "P001518",
+        "P001975"
+      ],
+      "retrieval_metrics": {
+        "recall@1": 0.05,
+        "recall@3": 0.15,
+        "recall@5": 0.25,
+        "precision@5": 1.0,
+        "mrr": 1.0,
+        "ndcg@5": 1.0,
+        "hit_rate@5": 1.0
+      },
+      "generation_metrics": {
+        "faithfulness": 1.0,
+        "answer_relevance": 0.5,
+        "context_precision": 0.5,
+        "context_recall": 0.5
+      },
+      "retrieval_latency_ms": 74.56,
+      "gen_latency_ms": 823.05,
+      "latency_ms": 897.6,
+      "answer": "🔍 共找到 10 个相关商品：\n\n1. **薇诺娜美妆护肤** | 品牌: 薇诺娜 | 分类: 美妆护肤 | 价格: ¥1162.24 | 销量: 9562 | 相似度: 0.5087\n2. **SK-II美妆护肤** | 品牌: SK-II | 分类: 美妆护肤 | 价格: ¥1252.93 | 相似度: 2.5208\n3. **自然堂美妆护肤** | 品牌: 自然堂 | 分类: 美妆护肤 | ",
+      "type": "search",
+      "description": "美妆护肤搜索"
+    },
+    {
+      "query": "笔记本电脑",
+      "retrieved_ids": [
+        "P000886",
+        "P000834",
+        "P001480",
+        "P000841",
+        "P000696",
+        "P001748",
+        "P001757",
+        "P001817",
+        "P000555",
+        "P000372"
+      ],
+      "relevant_ids": [
+        "P001480",
+        "P000886",
+        "P000696"
+      ],
+      "retrieval_metrics": {
+        "recall@1": 0.3333333333333333,
+        "recall@3": 0.6666666666666666,
+        "recall@5": 1.0,
+        "precision@5": 0.6,
+        "mrr": 1.0,
+        "ndcg@5": 0.8854598815714874,
+        "hit_rate@5": 1.0
+      },
+      "generation_metrics": {
+        "faithfulness": 1.0,
+        "answer_relevance": 0.0,
+        "context_precision": 0.0,
+        "context_recall": 0.0
+      },
+      "retrieval_latency_ms": 85.77,
+      "gen_latency_ms": 929.69,
+      "latency_ms": 1015.46,
+      "answer": "🔍 共找到 10 个相关商品：\n\n1. **人民邮电出版社图书音像** | 品牌: 人民邮电出版社 | 分类: 图书音像 | 价格: ¥974.37 | 销量: 1234 | 相似度: 0.3725\n2. **完美日记美妆护肤** | 品牌: 完美日记 | 分类: 美妆护肤 | 价格: ¥227.02 | 相似度: 2.0998\n3. **戴森家用电器** | 品牌: 戴森 | 分类: 家用电器 ",
+      "type": "search",
+      "description": "手机数码搜索"
+    },
+    {
+      "query": "食品零食",
+      "retrieved_ids": [
+        "P001685",
+        "P000080",
+        "P000995",
+        "P000133",
+        "P000937",
+        "P000546",
+        "P001401",
+        "P001032",
+        "P000388",
+        "P001122"
+      ],
+      "relevant_ids": [
+        "P001122",
+        "P001218",
+        "P000590",
+        "P001965",
+        "P000546",
+        "P001245",
+        "P000050",
+        "P000243",
+        "P000080",
+        "P000388",
+        "P000621",
+        "P001032",
+        "P000308",
+        "P000133",
+        "P000937",
+        "P000541",
+        "P001685",
+        "P001174",
+        "P000995",
+        "P001401"
+      ],
+      "retrieval_metrics": {
+        "recall@1": 0.05,
+        "recall@3": 0.15,
+        "recall@5": 0.25,
+        "precision@5": 1.0,
+        "mrr": 1.0,
+        "ndcg@5": 1.0,
+        "hit_rate@5": 1.0
+      },
+      "generation_metrics": {
+        "faithfulness": 1.0,
+        "answer_relevance": 0.5,
+        "context_precision": 0.5,
+        "context_recall": 0.5
+      },
+      "retrieval_latency_ms": 115.76,
+      "gen_latency_ms": 642.43,
+      "latency_ms": 758.19,
+      "answer": "🔍 共找到 10 个相关商品：\n\n1. **良品铺子食品生鲜** | 品牌: 良品铺子 | 分类: 食品生鲜 | 价格: ¥213.77 | 销量: 7992 | 相似度: 0.5194\n2. **伊利食品生鲜** | 品牌: 伊利 | 分类: 食品生鲜 | 价格: ¥496.7 | 相似度: 2.3807\n3. **良品铺子食品生鲜** | 品牌: 良品铺子 | 分类: 食品生鲜 | 价格: ¥",
+      "type": "search",
+      "description": "食品生鲜搜索"
+    },
+    {
+      "query": "宠物狗粮",
+      "retrieved_ids": [
+        "P000887",
+        "P000231",
+        "P000110",
+        "P000232",
+        "P000996",
+        "P000407",
+        "P001668",
+        "P001712",
+        "P000769",
+        "P001887"
+      ],
+      "relevant_ids": [
+        "P000394",
+        "P000407",
+        "P001123",
+        "P001045",
+        "P001712",
+        "P000231",
+        "P000264",
+        "P000174",
+        "P000913",
+        "P000110",
+        "P001993",
+        "P001668",
+        "P001808",
+        "P000996",
+        "P001066",
+        "P000887",
+        "P001887",
+        "P000769",
+        "P000232",
+        "P000101"
+      ],
+      "retrieval_metrics": {
+        "recall@1": 0.05,
+        "recall@3": 0.15,
+        "recall@5": 0.25,
+        "precision@5": 1.0,
+        "mrr": 1.0,
+        "ndcg@5": 1.0,
+        "hit_rate@5": 1.0
+      },
+      "generation_metrics": {
+        "faithfulness": 1.0,
+        "answer_relevance": 0.5,
+        "context_precision": 0.5,
+        "context_recall": 0.5
+      },
+      "retrieval_latency_ms": 69.85,
+      "gen_latency_ms": 681.82,
+      "latency_ms": 751.68,
+      "answer": "🔍 共找到 10 个相关商品：\n\n1. **麦富迪宠物用品** | 品牌: 麦富迪 | 分类: 宠物用品 | 价格: ¥272.5 | 销量: 4871 | 相似度: 0.5774\n2. **pidan宠物用品** | 品牌: pidan | 分类: 宠物用品 | 价格: ¥112.89 | 相似度: 2.7019\n3. **麦富迪宠物用品** | 品牌: 麦富迪 | 分类: 宠物用品 | 价格:",
+      "type": "search",
+      "description": "宠物用品搜索"
+    },
+    {
+      "query": "家用吸尘器",
+      "retrieved_ids": [
+        "P001332",
+        "P000206",
+        "P000656",
+        "P000377",
+        "P000115",
+        "P000399",
+        "P001852",
+        "P000778",
+        "P001184",
+        "P000790"
+      ],
+      "relevant_ids": [
+        "P000399",
+        "P001513",
+        "P000805",
+        "P001332",
+        "P000115",
+        "P001217",
+        "P000413",
+        "P001695",
+        "P001184",
+        "P001533",
+        "P001292",
+        "P001852",
+        "P000377",
+        "P000409",
+        "P000778",
+        "P000790",
+        "P000206",
+        "P000656",
+        "P001556",
+        "P000011"
+      ],
+      "retrieval_metrics": {
+        "recall@1": 0.05,
+        "recall@3": 0.15,
+        "recall@5": 0.25,
+        "precision@5": 1.0,
+        "mrr": 1.0,
+        "ndcg@5": 1.0,
+        "hit_rate@5": 1.0
+      },
+      "generation_metrics": {
+        "faithfulness": 1.0,
+        "answer_relevance": 0.5,
+        "context_precision": 0.0,
+        "context_recall": 0.5
+      },
+      "retrieval_latency_ms": 90.95,
+      "gen_latency_ms": 1091.1,
+      "latency_ms": 1182.05,
+      "answer": "🔍 共找到 10 个相关商品：\n\n1. **苏泊尔家用电器** | 品牌: 苏泊尔 | 分类: 家用电器 | 价格: ¥4269.6 | 销量: 1806 | 相似度: 0.4931\n2. **美的家用电器** | 品牌: 美的 | 分类: 家用电器 | 价格: ¥6605.2 | 相似度: 2.8366\n3. **戴森家用电器** | 品牌: 戴森 | 分类: 家用电器 | 价格: ¥5316.",
+      "type": "search",
+      "description": "家用电器搜索"
+    },
+    {
+      "query": "户外帐篷",
+      "retrieved_ids": [
+        "P000013",
+        "P000064",
+        "P001370",
+        "P000119",
+        "P000686",
+        "P000330",
+        "P001062",
+        "P000865",
+        "P001919",
+        "P001755"
+      ],
+      "relevant_ids": [
+        "P001787",
+        "P000022",
+        "P001062",
+        "P001755",
+        "P000865",
+        "P000872",
+        "P000119",
+        "P000330",
+        "P001586",
+        "P001906",
+        "P001368",
+        "P001370",
+        "P001132",
+        "P000686",
+        "P001026",
+        "P001966",
+        "P001804",
+        "P000013",
+        "P000064",
+        "P001919"
+      ],
+      "retrieval_metrics": {
+        "recall@1": 0.05,
+        "recall@3": 0.15,
+        "recall@5": 0.25,
+        "precision@5": 1.0,
+        "mrr": 1.0,
+        "ndcg@5": 1.0,
+        "hit_rate@5": 1.0
+      },
+      "generation_metrics": {
+        "faithfulness": 0.5,
+        "answer_relevance": 0.5,
+        "context_precision": 0.0,
+        "context_recall": 0.5
+      },
+      "retrieval_latency_ms": 73.05,
+      "gen_latency_ms": 1197.23,
+      "latency_ms": 1270.28,
+      "answer": "🔍 共找到 10 个相关商品：\n\n1. **哥伦比亚运动户外** | 品牌: 哥伦比亚 | 分类: 运动户外 | 价格: ¥277.73 | 销量: 427 | 相似度: 0.4203\n2. **361度运动户外** | 品牌: 361度 | 分类: 运动户外 | 价格: ¥949.76 | 相似度: 2.5373\n3. **探路者运动户外** | 品牌: 探路者 | 分类: 运动户外 | 价格:",
+      "type": "search",
+      "description": "运动户外搜索"
+    },
+    {
+      "query": "怎么退货？",
+      "retrieved_docs": 3,
+      "keyword_hit_rate": 1.0,
+      "generation_metrics": {
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "context_precision": 1.0,
+        "context_recall": 1.0
+      },
+      "retrieval_latency_ms": 2699.78,
+      "gen_latency_ms": 1855.3,
+      "latency_ms": 4555.09,
+      "answer": "您好！关于退货，您可以在收到商品后**7天内**申请退换货。具体操作如下：\n\n1. 进入「我的订单」页面；\n2. 找到对应订单，点击「申请退换货」；\n3. 按照提示提交申请即可。\n\n请注意，退换货商品需**保持原包装完好**，以便顺利处理。\n\n如果您已经提交申请，退款会在我们收到退货商品后的**1-3个工作日内**原路退回您的支付账户，请留意查收。\n\n如果还有其他问题，比如订单状态或退货进度查询，",
+      "type": "cs",
+      "description": "退货政策"
+    },
+    {
+      "query": "退款多久到账？",
+      "retrieved_docs": 3,
+      "keyword_hit_rate": 0.75,
+      "generation_metrics": {
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "context_precision": 0.67,
+        "context_recall": 1.0
+      },
+      "retrieval_latency_ms": 2024.2,
+      "gen_latency_ms": 1618.33,
+      "latency_ms": 3642.53,
+      "answer": "您好！关于退款到账时间，根据我们的规则：**在收到您退回的商品后，1-3个工作日内会原路退回您的支付账户**，请您留意查收。\n\n如果您的退货商品还未寄回，或者需要查询具体进度，建议您登录「我的订单」查看物流状态，或联系人工客服为您进一步核实。有其他问题也欢迎随时咨询哦！😊",
+      "type": "cs",
+      "description": "退款时效"
+    },
+    {
+      "query": "运费谁出？",
+      "retrieved_docs": 3,
+      "keyword_hit_rate": 0.25,
+      "generation_metrics": {
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "context_precision": 0.67,
+        "context_recall": 1.0
+      },
+      "retrieval_latency_ms": 1745.89,
+      "gen_latency_ms": 1395.58,
+      "latency_ms": 3141.47,
+      "answer": "您好！关于运费的问题，根据我们的规定：**单笔订单满99元即可免邮费**，不满99元则需要收取10元邮费。不过，偏远地区（如新疆、西藏等）可能需要额外邮费哦。\n\n如果您还有其他订单或支付方面的问题，也欢迎随时告诉我，我会尽力帮您解答！😊",
+      "type": "cs",
+      "description": "运费责任"
+    },
+    {
+      "query": "发货时间",
+      "retrieved_docs": 3,
+      "keyword_hit_rate": 0.33,
+      "generation_metrics": {
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "context_precision": 0.33,
+        "context_recall": 1.0
+      },
+      "retrieval_latency_ms": 1438.93,
+      "gen_latency_ms": 1965.65,
+      "latency_ms": 3404.59,
+      "answer": "您好！关于发货时间，一般情况下，订单付款后**24小时内**就会发货。不过节假日可能会有延迟，发货后您会收到短信通知哦。\n\n如果还有其他问题，欢迎随时咨询～",
+      "type": "cs",
+      "description": "发货时效"
+    },
+    {
+      "query": "怎么开发票？",
+      "retrieved_docs": 3,
+      "keyword_hit_rate": 1.0,
+      "generation_metrics": {
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "context_precision": 0.33,
+        "context_recall": 1.0
+      },
+      "retrieval_latency_ms": 1400.72,
+      "gen_latency_ms": 985.86,
+      "latency_ms": 2386.58,
+      "answer": "您好！关于开发票的问题，为您解答如下：\n\n您可以在下单时直接选择「需要发票」，并填写发票抬头和税号。订单完成后，电子发票会自动发送到您预留的邮箱中，非常方便。\n\n如果您在操作过程中还有其他疑问，也欢迎随时联系我们的人工客服，我们会尽力协助您。祝您购物愉快！",
+      "type": "cs",
+      "description": "发票政策"
+    }
+  ],
+  "summary": {
+    "retrieval": {
+      "recall@1": 0.0646,
+      "recall@3": 0.2604,
+      "recall@5": 0.45,
+      "precision@5": 0.76,
+      "mrr": 0.8333,
+      "ndcg@5": 0.8131,
+      "hit_rate@5": 1.0
+    },
+    "generation": {
+      "faithfulness": 0.9667,
+      "answer_relevance": 0.6,
+      "context_precision": 0.4,
+      "context_recall": 0.6333,
+      "valid": true,
+      "error_count": 0
+    },
+    "performance": {
+      "avg_latency_ms": 1788.61,
+      "max_latency_ms": 4555.09,
+      "min_latency_ms": 751.68,
+      "avg_retrieval_latency_ms": 678.2,
+      "avg_gen_latency_ms": 1110.41
+    }
+  },
+  "retrieval_baseline": {
+    "cases": 10,
+    "summary": {
+      "keyword_only": {
+        "recall@1": 0.0312,
+        "recall@3": 0.0875,
+        "recall@5": 0.15,
+        "precision@5": 0.58,
+        "mrr": 0.6125,
+        "ndcg@5": 0.5786,
+        "hit_rate@5": 0.6
+      },
+      "vector_only": {
+        "recall@1": 0.1646,
+        "recall@3": 0.4938,
+        "recall@5": 0.5563,
+        "precision@5": 0.84,
+        "mrr": 1.0,
+        "ndcg@5": 1.0,
+        "hit_rate@5": 1.0
+      },
+      "hybrid": {
+        "recall@1": 0.0646,
+        "recall@3": 0.2604,
+        "recall@5": 0.45,
+        "precision@5": 0.76,
+        "mrr": 0.8333,
+        "ndcg@5": 0.8131,
+        "hit_rate@5": 1.0
+      }
+    }
+  }
+}

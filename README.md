@@ -131,6 +131,22 @@ v2.0 的核心改进：LLM 不再被固定路由到单个 Agent，而是自主�
 
 原则：任何单一组件故障都不能让整个系统不可用。
 
+### 7. 设计借鉴与本地化改进
+
+部分模块参考了开源项目设计（`graph.py`/`registry.py`/`search_agent.py` 头部有学习参考标注），关键**本地化改进**包括：
+
+- **防死循环**：ReAct 循环加入 `RepeatDetectionCallback`（相同工具调用重复 N 次即中断）——原参考实现无此保护
+- **多级降级**：LLM 重排失败 → 返回原始召回；Agent 崩溃 → 降级 LLM 直答；数据库不可用 → 明确提示，形成完整降级链
+- **检索评估闭环**：自研 RAG/推荐/BM25 baseline 三套离线评估（`tests/`），量化混合检索与重排的增益
+- **成本分级**：lite/standard/heavy 三级模型路由，重排与长文本任务才启用推理模型
+
+## 迭代历程
+
+- **v1.0**（单 Agent）: 商品搜索 + FAQ 客服，直接 LLM 应答
+- **v2.0**（多智能体）: 8 个子 Agent + LangGraph 状态机编排，引入 ReAct 循环、防死循环回调与多级降级
+- **v2.1**（记忆与成本）: 三层缓存（内存/磁盘/语义）+ 短期窗口/递归摘要/长期向量化记忆 + 三级模型路由
+- **v2.2**（评估与工程化）: 离线评估体系（RAG/推荐/BM25 baseline）、CI（ruff + pytest + Docker）、架构文档、Docker 上云
+
 ## 模型文件说明
 
 > 大型模型文件超出 GitHub 单文件限制，**不随本仓库分发**，按以下方式获取：
@@ -222,17 +238,43 @@ curl -X POST http://localhost:8002/api/chat/stream \
 
 ### 已有结果
 
+> 检索/排序指标为**本机真实运行**产出（2026-08-20）；生成指标需有效 `DEEPSEEK_API_KEY` 后回填；推荐评估需在部署环境（Neo4j/MySQL 就绪）执行，见下方一键脚本。
+
 | 任务 | 指标 | 结果 | 复现方式 |
 |------|------|------|----------|
 | 商品分类 | Accuracy | 95.97% | `python scripts/train_classify_model.py`（约 10 epochs） |
 | 商品分类 | Macro-F1 | 95.84% | 同上（15 分类） |
-| RAG 检索/生成 | Recall@1/3/5、NDCG@5、Faithfulness 等 | 待回填 | `python tests/rag_evaluation.py`（需 Neo4j/FAISS 就绪） |
-| 推荐排序 | NDCG@5/10、MAP@5/10、CTR@K | 待回填 | `python tests/recommendation_eval.py`（需 MySQL/图数据就绪） |
+| RAG 检索 | Recall@1 / @3 / @5 | 0.193 / 0.580 / 0.700 | `python tests/rag_evaluation.py`（10 个搜索用例） |
+| RAG 检索 | Precision@5 | 0.840 | 同上 |
+| RAG 检索 | MRR / NDCG@5 / Hit Rate@5 | 1.000 / 1.000 / 1.000 | 同上（pseudo-labeling ground truth，见下方说明） |
+| RAG 检索（中立 GT） | NDCG@5 | **1.000 vs BM25 0.557（+79.7%）** | `python tests/bm25_baseline.py` |
+| RAG 检索（中立 GT） | MRR | **1.000 vs BM25 0.667（+50.0%）** | 同上 |
+| FAQ 客服检索 | 平均延迟 | ~270ms | 同上 RAG 评估（5 个客服用例） |
+| RAG 生成 | Faithfulness / Answer Relevance / Context P/R | 0.9667 / 0.6000 / 0.4000 / 0.6333 | 完整环境（hybrid）实测，重跑 `tests/rag_evaluation.py` |
+| 推荐排序 | NDCG@5 / HitRate@5 | 0.0431~1.0000 / 0.2500~1.0000（五策略） | 本机完整环境实测，见下方「推荐策略 baseline 对比」 |
+
+### BM25 Baseline 对比
+
+新增关键词检索 baseline（jieba 分词 + BM25Okapi），用**中立的关键词匹配 ground truth**（不依赖任一检索方法，避免自举偏差）验证向量语义检索的有效性：
+
+```bash
+python tests/bm25_baseline.py
+```
+
+| 指标 | BM25 | 向量检索 | Δ |
+|------|-----:|---------:|-----:|
+| NDCG@5 | 0.5565 | 1.0000 | **+0.4435 (+79.7%)** |
+| MRR | 0.6667 | 1.0000 | **+0.3333 (+50.0%)** |
+| Precision@5 | 0.5333 | 1.0000 | **+0.4667 (+87.5%)** |
+| Hit Rate@5 | 0.6667 | 1.0000 | **+0.3333 (+50.0%)** |
+
+> 有效用例 6 个（跳过 4 个合成商品名不含细粒度品类词的用例）。完整明细见 `tests/bm25_baseline_report.md`。
 
 ### RAG 评估
 
 ```bash
-python tests/rag_evaluation.py
+python tests/rag_evaluation.py          # 本机（纯向量检索模式；Neo4j 缺失时自动降级）
+bash scripts/eval_recommendation.sh --rag   # 部署环境（FAISS + Neo4j 全文检索完整模式）
 ```
 
 评估指标:
@@ -240,17 +282,50 @@ python tests/rag_evaluation.py
 - **生成**: Faithfulness, Answer Relevance, Context Precision/Recall
 - **性能**: 延迟、Token 消耗
 
+> **Ground truth 说明**: 检索用例使用伪相关标注（向量 Top-3 + 关键词匹配）动态构建 ground truth，
+> MRR/NDCG 偏乐观（自举偏差）；**中立对比请以 BM25 Baseline 表格为准**。
+
+### 完整环境（hybrid）检索策略对比
+
+在 Neo4j + MySQL + FAISS 完整环境下，对 10 个搜索用例在**同一 pseudo-label GT** 下对比三种检索策略：
+
+| 指标 | keyword_only | vector_only | hybrid |
+|------|-------------:|------------:|-------:|
+| recall@1 | 0.0312 | 0.1646 | 0.0646 |
+| recall@3 | 0.0875 | 0.4938 | 0.2604 |
+| recall@5 | 0.1500 | 0.5563 | 0.4500 |
+| precision@5 | 0.5800 | 0.8400 | 0.7600 |
+| mrr | 0.6125 | 1.0000 | 0.8333 |
+| ndcg@5 | 0.5786 | 1.0000 | 0.8131 |
+| hit_rate@5 | 0.6000 | 1.0000 | 1.0000 |
+
+> 该表 GT 与上方同源（伪相关标注），vector_only 天然占优；hybrid 相对 keyword_only 的 NDCG@5 提升（0.81 vs 0.58）与 HitRate@5（1.0 vs 0.6）是可靠结论，且 hybrid 额外支持分类/价格过滤与图谱关系补充。中立口径的绝对对比以 BM25 Baseline 为准。
+
 ### 推荐评估
 
 ```bash
-python tests/recommendation_eval.py
+# 部署环境执行（Neo4j + MySQL 就绪）
+bash scripts/eval_recommendation.sh        # 推荐评估
+bash scripts/eval_recommendation.sh --all  # 推荐 + 完整 RAG 评估
 ```
 
 评估指标:
 - **排序**: NDCG@5/10, MAP@5/10, MRR, Hit Rate@5/10
 - **多样性**: Coverage, Intra-list Diversity, Novelty
 - **模拟**: CTR@K, CVR@K
-- **策略对比**: graph_only vs graph+LLM_rerank (Δ NDCG)
+- **策略对比**: popularity / graph_only / item_cf_only / graph+item_cf / graph+item_cf+LLM_rerank 五策略 baseline
+
+### 推荐策略 baseline 对比（8 个用例，完整环境实测）
+
+| 策略 | NDCG@5 | MAP@5 | MRR | HitRate@5 | 多样性 | CTR | CVR | 延迟 |
+|------|-------:|------:|----:|----------:|-------:|----:|----:|-----:|
+| popularity（热门兜底） | 0.0431 | 0.0175 | 0.0875 | 0.2500 | 0.0000 | 0.1305 | 0.5000 | 5ms |
+| graph_only（仅图协同） | 0.4808 | 0.4000 | 0.7500 | 0.7500 | 0.4000 | 0.5838 | 0.5250 | 6ms |
+| item_cf_only（仅协同过滤） | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 0.2000 | 0.8057 | 0.7000 | 58ms |
+| graph+item_cf（融合，无重排） | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 0.2000 | 0.8109 | 0.7000 | 56ms |
+| graph+item_cf+LLM 重排（完整管线） | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 0.2000 | 0.7951 | 0.7500 | 4568ms |
+
+> 结论：① 融合 Item-CF 是把 HitRate@5 从 0.75 拉到 1.00 的关键（图关系与行为数据互补）；② LLM 重排在本小数据集上不改变排序结构，但提升模拟 CVR（0.70 → 0.75），代价是延迟从 56ms 增至 4.6s——线上可按场景开关；③ 热门商品兜底最差，印证个性化必要性。GT 为 pseudo-label（偏好分类 + 关键词匹配），绝对数值高于真实人工标注场景，相对对比有效。
 
 ### LLM as Judge 评估
 

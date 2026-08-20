@@ -25,6 +25,15 @@ class _SharedEmbedderAdapter:
     def __init__(self, model):
         self._model = model
 
+    def __call__(self, text: str) -> List[float]:
+        """
+        兼容 LangChain 新版本 FAISS 的调用方式:
+        新版 langchain_community.faiss._embed_query 直接调用 self.embedding_function(text)
+        （要求 embedding 对象可调用），旧版则调用 .embed_query(text)。
+        同时实现 __call__ 与 embed_* 接口可兼容两种版本。
+        """
+        return self.embed_query(text)
+
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         embeddings = self._model.encode(texts, normalize_embeddings=True)
         return embeddings.tolist()

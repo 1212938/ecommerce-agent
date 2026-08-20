@@ -148,7 +148,7 @@ class RecommendAgent(BaseAgentTool):
         """
 
         try:
-            with self.neo4j_driver.session(default_transaction_timeout=10) as session:
+            with self.neo4j_driver.session() as session:
                 result = session.run(
                     cypher,
                     {
@@ -358,7 +358,7 @@ class RecommendAgent(BaseAgentTool):
                        collect(DISTINCT sku.price)[0..1] AS prices
                 LIMIT $top_k
                 """
-                with self.neo4j_driver.session(default_transaction_timeout=10) as session:
+                with self.neo4j_driver.session() as session:
                     result = session.run(cypher, {"top_k": top_k})
                     items = []
                     for r in result:
@@ -437,7 +437,7 @@ class RecommendAgent(BaseAgentTool):
         ORDER BY p.id LIMIT $top_k
         """
         try:
-            with self.neo4j_driver.session(default_transaction_timeout=10) as session:
+            with self.neo4j_driver.session() as session:
                 result = session.run(cypher, {"top_k": top_k})
                 return [
                     {

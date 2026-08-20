@@ -143,7 +143,7 @@ class ProductSearchAgent(BaseAgentTool):
                 RETURN p.id AS id, p.name AS name, c.name AS category,
                        collect(DISTINCT sku.price)[0..1] AS prices
                 """
-                with self.neo4j_driver.session(default_transaction_timeout=30) as session:
+                with self.neo4j_driver.session() as session:
                     result = session.run(cypher)
                     for r in result:
                         prices = r.get("prices") or []
@@ -292,7 +292,7 @@ class ProductSearchAgent(BaseAgentTool):
         """
 
         try:
-            with self.neo4j_driver.session(default_transaction_timeout=10) as session:
+            with self.neo4j_driver.session() as session:
                 result = session.run(
                     cypher,
                     {
@@ -337,7 +337,7 @@ class ProductSearchAgent(BaseAgentTool):
         LIMIT $top_k
         """
         try:
-            with self.neo4j_driver.session(default_transaction_timeout=10) as session:
+            with self.neo4j_driver.session() as session:
                 result = session.run(
                     cypher,
                     {

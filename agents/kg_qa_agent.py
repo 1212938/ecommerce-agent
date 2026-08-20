@@ -240,10 +240,8 @@ Cypher查询:"""
             return []
 
         try:
-            with self.neo4j_driver.session(
-                default_transaction_timeout=self.QUERY_TIMEOUT_SECONDS
-            ) as session:
-                result = session.run(cypher)
+            with self.neo4j_driver.session() as session:
+                result = session.run(cypher, timeout=self.QUERY_TIMEOUT_SECONDS)
                 records = []
                 row_count = 0
                 for r in result:
@@ -272,10 +270,8 @@ Cypher查询:"""
             return []
 
         try:
-            with self.neo4j_driver.session(
-                default_transaction_timeout=self.QUERY_TIMEOUT_SECONDS
-            ) as session:
-                result = session.run(cypher, params)
+            with self.neo4j_driver.session() as session:
+                result = session.run(cypher, params, timeout=self.QUERY_TIMEOUT_SECONDS)
                 records = []
                 row_count = 0
                 for r in result:

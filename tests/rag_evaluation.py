@@ -243,6 +243,52 @@ class GenerationMetrics:
     def __init__(self, llm: ChatOpenAI):
         self.llm = llm
 
+    @staticmethod
+    def _parse_json_response(result: str) -> dict:
+        """
+        健壮 JSON 解析 — 兼容 LLM 常见的非标准输出:
+        1. ```json ... ``` 代码块包裹
+        2. JSON 前后夹杂解释性文字
+        3. 尾随逗号 / 单引号等宽松格式
+        """
+        # 1. 去除 markdown 代码块包裹
+        if result.startswith("```"):
+            result = result.split("\n", 1)[-1]
+            result = result.rsplit("```", 1)[0].strip()
+
+        # 2. 尝试直接解析
+        try:
+            parsed = json.loads(result)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+
+        # 3. 提取最外层 {...} 块再解析
+        start, end = result.find("{"), result.rfind("}")
+        if start != -1 and end > start:
+            candidate = result[start : end + 1]
+            try:
+                parsed = json.loads(candidate)
+                if isinstance(parsed, dict):
+                    return parsed
+            except json.JSONDecodeError:
+                pass
+
+        # 4. 宽松模式: 修复尾随逗号 / 单引号
+        try:
+            import re
+
+            fixed = re.sub(r",\s*([}\]])", r"\1", candidate if "candidate" in dir() else result)
+            fixed = fixed.replace("'", '"')
+            parsed = json.loads(fixed)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            pass
+
+        raise ValueError(f"无法解析 LLM 返回为 JSON: {result[:200]!r}")
+
     def evaluate(
         self,
         query: str,
@@ -258,17 +304,17 @@ class GenerationMetrics:
 
         try:
             result = self.llm.invoke(prompt).content.strip()
-            if result.startswith("```"):
-                result = result.split("\n", 1)[-1]
-                result = result.rsplit("```", 1)[0].strip()
-            return json.loads(result)
+            parsed = self._parse_json_response(result)
+            return parsed
         except Exception as e:
-            print(f"[GenerationMetrics] 评估失败: {e}")
+            # 失败必须可见 — 不再静默返回全 0, 显式标记 error 便于排查
+            print(f"[GenerationMetrics] 评估失败: {type(e).__name__}: {e}")
             return {
                 "faithfulness": 0.0,
                 "answer_relevance": 0.0,
                 "context_precision": 0.0,
                 "context_recall": 0.0,
+                "error": f"{type(e).__name__}: {str(e)[:200]}",
             }
 
 
@@ -336,7 +382,7 @@ class RAGEvaluator:
         except Exception as e:
             return {"error": f"搜索失败: {e}"}
 
-        latency_ms = (time.time() - start_time) * 1000
+        retrieval_latency_ms = (time.time() - start_time) * 1000
 
         # 动态构建 ground truth (当 relevant_ids 为 ["auto"] 时)
         if relevant_ids == ["auto"]:
@@ -349,7 +395,9 @@ class RAGEvaluator:
         answer = self.search_agent._format_results(merged[:top_k]) if merged else "未找到结果"
 
         # 生成指标
+        gen_start = time.time()
         gen_metrics = self.gen_metrics.evaluate(query, answer, context_str)
+        gen_latency_ms = (time.time() - gen_start) * 1000
 
         return {
             "query": query,
@@ -357,7 +405,9 @@ class RAGEvaluator:
             "relevant_ids": relevant_ids,
             "retrieval_metrics": retrieval_metrics,
             "generation_metrics": gen_metrics,
-            "latency_ms": round(latency_ms, 2),
+            "retrieval_latency_ms": round(retrieval_latency_ms, 2),
+            "gen_latency_ms": round(gen_latency_ms, 2),
+            "latency_ms": round(retrieval_latency_ms + gen_latency_ms, 2),
             "answer": answer[:200],
         }
 
@@ -412,10 +462,12 @@ class RAGEvaluator:
         # 生成回答
         answer = self.cs_agent.policy_qa(query)
 
-        latency_ms = (time.time() - start_time) * 1000
+        retrieval_latency_ms = (time.time() - start_time) * 1000
 
         # 生成指标
+        gen_start = time.time()
         gen_metrics = self.gen_metrics.evaluate(query, answer, context_str)
+        gen_latency_ms = (time.time() - gen_start) * 1000
 
         # 关键词命中率 (简化版 recall)
         answer_lower = answer.lower()
@@ -427,7 +479,9 @@ class RAGEvaluator:
             "retrieved_docs": len(docs),
             "keyword_hit_rate": round(keyword_hit_rate, 2),
             "generation_metrics": gen_metrics,
-            "latency_ms": round(latency_ms, 2),
+            "retrieval_latency_ms": round(retrieval_latency_ms, 2),
+            "gen_latency_ms": round(gen_latency_ms, 2),
+            "latency_ms": round(retrieval_latency_ms + gen_latency_ms, 2),
             "answer": answer[:200],
         }
 
@@ -477,6 +531,63 @@ class RAGEvaluator:
             "summary": summary,
         }
 
+    def evaluate_retrieval_strategies(self, test_cases: List[dict]) -> dict:
+        """
+        检索策略 baseline 对比（同一 pseudo-label GT 下评估）
+
+        策略:
+        - keyword_only: 仅 Neo4j 关键词检索
+        - vector_only: 仅 FAISS 向量检索
+        - hybrid: 向量 + 关键词 RRF 融合（完整管线）
+        """
+        strategies = ["keyword_only", "vector_only", "hybrid"]
+        per_strategy = {s: [] for s in strategies}
+        case_count = 0
+
+        for case in test_cases:
+            if case.get("type") != "search":
+                continue
+            case_count += 1
+            query = case["query"]
+            try:
+                vec = self.search_agent._vector_search(query, 10)
+                cypher = self.search_agent._neo4j_keyword_search(query, 10, None, None, None)
+                merged = self.search_agent._reciprocal_rank_fusion(vec, cypher)
+                gt = self._build_ground_truth(merged, vec, case.get("relevant_keywords", []))
+            except Exception as e:
+                print(f"  [Baseline] 检索失败 {query[:20]}: {e}")
+                continue
+
+            for strategy in strategies:
+                if strategy == "vector_only":
+                    ids = [r["id"] for r in vec[:10]]
+                elif strategy == "keyword_only":
+                    ids = [r["id"] for r in cypher[:10]]
+                else:
+                    ids = [r["id"] for r in merged[:10]]
+                per_strategy[strategy].append(RetrievalMetrics.compute_all(ids, gt))
+
+        summary = {}
+        metric_names = [
+            "recall@1",
+            "recall@3",
+            "recall@5",
+            "precision@5",
+            "mrr",
+            "ndcg@5",
+            "hit_rate@5",
+        ]
+        for strategy, results in per_strategy.items():
+            summary[strategy] = {
+                m: round(sum(r.get(m, 0) for r in results) / len(results), 4) if results else 0
+                for m in metric_names
+            }
+
+        return {
+            "cases": case_count,
+            "summary": summary,
+        }
+
     def _compute_summary(self, results: list) -> dict:
         """计算汇总指标"""
         if not results:
@@ -507,16 +618,40 @@ class RAGEvaluator:
         # 生成指标汇总
         gen_metrics = ["faithfulness", "answer_relevance", "context_precision", "context_recall"]
         summary["generation"] = {}
+        gen_error_count = sum(1 for r in results if r.get("generation_metrics", {}).get("error"))
         for metric in gen_metrics:
             values = [r.get("generation_metrics", {}).get(metric, 0) for r in results]
             summary["generation"][metric] = round(sum(values) / len(values), 4) if values else 0
+        # 显式标注生成指标有效性 — 有 error 时不可信
+        summary["generation"]["valid"] = gen_error_count == 0
+        summary["generation"]["error_count"] = gen_error_count
+        if gen_error_count:
+            summary["generation"]["first_error"] = next(
+                (
+                    r.get("generation_metrics", {}).get("error", "")
+                    for r in results
+                    if r.get("generation_metrics", {}).get("error")
+                ),
+                "",
+            )
 
         # 性能指标
         latencies = [r.get("latency_ms", 0) for r in results]
+        ret_latencies = [
+            r.get("retrieval_latency_ms", 0) for r in results if r.get("retrieval_latency_ms")
+        ]
+        gen_latencies = [r.get("gen_latency_ms", 0) for r in results if r.get("gen_latency_ms")]
+
+        def _avg(vals):
+            return round(sum(vals) / len(vals), 2) if vals else 0
+
         summary["performance"] = {
-            "avg_latency_ms": round(sum(latencies) / len(latencies), 2) if latencies else 0,
+            "avg_latency_ms": _avg(latencies),
             "max_latency_ms": max(latencies) if latencies else 0,
             "min_latency_ms": min(latencies) if latencies else 0,
+            # 拆分统计 — 检索耗时才是系统真实性能
+            "avg_retrieval_latency_ms": _avg(ret_latencies),
+            "avg_gen_latency_ms": _avg(gen_latencies),
         }
 
         return summary
@@ -696,7 +831,13 @@ def main():
 
     if "generation" in summary:
         print("\n📝 生成指标:")
-        for metric, value in summary["generation"].items():
+        gen = summary["generation"]
+        if not gen.get("valid", True):
+            print(f"  ⚠️  生成指标无效: {gen.get('error_count', 0)} 个用例评估失败")
+            print(f"  ⚠️  首个错误: {gen.get('first_error', '未知')[:120]}")
+        for metric, value in gen.items():
+            if metric in ("valid", "error_count", "first_error"):
+                continue
             print(f"  {metric:20s}: {value:.4f}")
 
     if "performance" in summary:
@@ -705,6 +846,32 @@ def main():
             print(f"  {metric:20s}: {value}")
 
     print(f"\n{'=' * 60}\n")
+
+    # 检索策略 baseline 对比
+    print(f"\n{'=' * 60}")
+    print("  检索策略对比（同一 GT 下评估）")
+    print(f"{'=' * 60}")
+
+    ret_baseline = evaluator.evaluate_retrieval_strategies(all_cases)
+    strategy_names = list(ret_baseline["summary"].keys())
+    header = f"{'metric':<14s}" + "".join(f"{s:>14s}" for s in strategy_names)
+    print(header)
+    baseline_metrics = [
+        "recall@1",
+        "recall@3",
+        "recall@5",
+        "precision@5",
+        "mrr",
+        "ndcg@5",
+        "hit_rate@5",
+    ]
+    for m in baseline_metrics:
+        row = f"{m:<14s}" + "".join(
+            f"{ret_baseline['summary'][s][m]:>14.4f}" for s in strategy_names
+        )
+        print(row)
+
+    result["retrieval_baseline"] = ret_baseline
 
     # 保存报告
     output_path = os.path.join(PROJECT_ROOT, "tests", "rag_evaluation_report.json")

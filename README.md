@@ -1,5 +1,10 @@
 # 电商领域智能体 (E-Commerce Agent)
 
+![CI](https://img.shields.io/github/actions/workflow/status/1212938/ecommerce-agent/ci.yml?branch=main&label=CI)
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+![License](https://img.shields.io/github/license/1212938/ecommerce-agent)
+![Release](https://img.shields.io/github/v/release/1212938/ecommerce-agent)
+
 基于 LangGraph + ReAct Agent + 多工具架构的电商智能助手系统，支持商品搜索、知识图谱问答、商品分类、智能推荐、订单查询、客服 FAQ 等功能。
 
 ## v2.0 核心升级
@@ -31,25 +36,31 @@
 
 ## 系统架构
 
-```
-用户输入 + 记忆上下文
-    ↓
-ReAct Orchestrator (LLM 自主决策工具循环)
-    ↓
-    ├─→ search_products     (FAISS + Neo4j 混合搜索)
-    ├─→ kg_qa               (知识图谱 Cypher 问答)
-    ├─→ classify_product    (BERT 商品分类)
-    ├─→ recommend_products  (图协同 + Item-CF + LLM 重排)
-    ├─→ query_order         (MySQL 订单查询)
-    ├─→ customer_service    (FAQ RAG 客服)
-    ├─→ data_analysis       (数据分析)
-    └─→ chitchat            (闲聊兜底)
-    ↓
-    观察 → 再思考 → (可继续调用其他工具) → 最终回答
-    ↓
-记忆系统 (短期窗口 + 摘要 + 长期向量化存储)
-    ↓
-SSE 流式输出 → 前端打字机效果
+```mermaid
+flowchart TB
+    subgraph 输入层
+        UI[Streamlit 前端] --> API[FastAPI /api/chat]
+        API --> ORCH[ReAct Orchestrator<br/>LLM 自主决策工具循环]
+    end
+
+    subgraph 工具层
+        ORCH --> S1[search_products<br/>FAISS + Neo4j 混合检索]
+        ORCH --> S2[kg_qa<br/>Cypher 知识图谱问答]
+        ORCH --> S3[classify_product<br/>BERT 15 分类]
+        ORCH --> S4[recommend_products<br/>图协同 + Item-CF + LLM 重排]
+        ORCH --> S5[query_order<br/>MySQL 订单查询]
+        ORCH --> S6[customer_service<br/>FAQ RAG 客服]
+        ORCH --> S7[data_analysis<br/>销售趋势 / 排行]
+        ORCH --> S8[chitchat<br/>闲聊兜底]
+    end
+
+    subgraph 支撑层
+        MEM[记忆系统<br/>短期窗口 + 递归摘要 + 长期向量化] --> ORCH
+        COST[成本优化<br/>模型分级 lite/standard/heavy + 三层缓存] --> ORCH
+        OBS[可观测性<br/>LangSmith tracing + Token 追踪] --> ORCH
+    end
+
+    ORCH --> OUT[SSE 流式输出<br/>打字机效果]
 ```
 
 ### ReAct 工具循环
@@ -71,6 +82,54 @@ v2.0 的核心改进：LLM 不再被固定路由到单个 Agent，而是自主�
 - **模型分级**: 闲聊/简单FAQ → lite (deepseek-chat, 512 tokens)，搜索/KG QA → standard (deepseek-chat, 2048 tokens)，推荐/分析 → heavy (deepseek-reasoner R1, 4096 tokens)
 - **Prompt 压缩**: 裁剪冗余空白、截断超长 context、压缩 JSON
 - **多级缓存**: L1 内存 (TTL 5min) + L2 磁盘 (持久化) + L3 语义缓存 (Embedding 相似度匹配)，非闲聊结果自动缓存
+
+## 技术决策与设计权衡
+
+> 项目演进过程中的关键取舍，也是面试深挖的重点。每个决策都按「备选方案 → 选择 → 理由 → 代价」展开。
+
+### 1. ReAct 工具循环 vs 固定路由
+
+- **备选**: v1.0 的关键词路由 + 固定 Agent 调用
+- **选择**: v2.0 以 ReAct（LLM 自主决策工具）为主，保留固定路由作为降级（`orchestration/graph.py`）
+- **理由**: 真实用户意图组合多变（如"推荐预算 200 以内的蓝牙耳机"），固定路由无法覆盖；ReAct 支持链式调用（搜索 → 分类 → 推荐）
+- **代价**: 多轮 LLM 推理带来额外延迟与 token 成本——通过模型分级、缓存、防死循环回调（`RepeatDetectionCallback`）控制
+
+### 2. 模型分级（lite / standard / heavy）
+
+- **备选**: 所有请求统一使用 deepseek-chat
+- **选择**: 闲聊/FAQ → lite（512 tokens），搜索/KG 问答 → standard（2048），推荐/分析 → heavy（deepseek-reasoner R1，4096）
+- **理由**: 简单任务用低成本模型，复杂任务才启用推理模型（成本约差 4 倍）
+- **代价**: 需要按任务校准 prompt 与超参，路由误判会损失响应质量
+
+### 3. 三层缓存（L1 内存 / L2 磁盘 / L3 语义）
+
+- **备选**: 无缓存或单层 TTL 缓存
+- **选择**: L1 内存（TTL 5min）+ L2 磁盘持久化 + L3 Embedding 语义缓存，非闲聊结果自动缓存
+- **理由**: 相似问题重复提问时语义缓存直接命中，省掉整次 LLM 调用
+- **代价**: 相似度阈值难调——阈值高命中率低，阈值低会误命中（语义相似但答案不同）
+
+### 4. 记忆系统（短期窗口 + 递归摘要 + 长期向量化）
+
+- **备选**: 无状态对话
+- **选择**: 滑动窗口 10 轮 + 超过 6 轮自动递归摘要 + LLM 抽取关键事实向量化存储到 FAISS
+- **理由**: 既支持多轮连续对话，又避免上下文无限膨胀
+- **代价**: 摘要有信息损失，且摘要本身消耗 token；长期记忆质量依赖 Embedding 检索
+
+### 5. 混合检索（FAISS 向量 + Neo4j 图谱）
+
+- **备选**: 纯向量检索或纯关键词
+- **选择**: FAISS 向量召回候选 + Neo4j 图谱补充关系（品牌/类目/属性），搜索与知识问答共用
+- **理由**: 向量擅长语义相似，图谱擅长关系推理（如"Apple 有哪些产品"）
+- **代价**: 两套索引需同步维护；Cypher 存在注入与查询复杂度风险——内置 Text2Cypher 安全校验与 MATCH 子句数量上限
+
+### 6. 降级策略
+
+- 分类模型未加载 → 规则关键词兜底
+- ReAct 失败 → 固定路由编排器
+- LLM 重排失败 → 返回原始召回结果
+- 数据库不可用 → 明确提示而非静默失败
+
+原则：任何单一组件故障都不能让整个系统不可用。
 
 ## 模型文件说明
 
@@ -159,6 +218,17 @@ curl -X POST http://localhost:8002/api/chat/stream \
 
 ## 评估系统
 
+> 离线评估覆盖检索、排序、生成质量与成本，脚本见 `tests/`。CI 同时保证代码质量与单元测试通过。
+
+### 已有结果
+
+| 任务 | 指标 | 结果 | 复现方式 |
+|------|------|------|----------|
+| 商品分类 | Accuracy | 95.97% | `python scripts/train_classify_model.py`（约 10 epochs） |
+| 商品分类 | Macro-F1 | 95.84% | 同上（15 分类） |
+| RAG 检索/生成 | Recall@1/3/5、NDCG@5、Faithfulness 等 | 待回填 | `python tests/rag_evaluation.py`（需 Neo4j/FAISS 就绪） |
+| 推荐排序 | NDCG@5/10、MAP@5/10、CTR@K | 待回填 | `python tests/recommendation_eval.py`（需 MySQL/图数据就绪） |
+
 ### RAG 评估
 
 ```bash
@@ -246,4 +316,4 @@ ecommerce-agent/
 
 ## License
 
-MIT
+MIT License，详见 [LICENSE](LICENSE)。

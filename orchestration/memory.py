@@ -16,12 +16,12 @@ MemoryManager:
   - 按 session_id 隔离不同会话
   - 提供 build_context() 构建 LLM 上下文
 """
-import os
+
 import json
+import os
 import time
-import pickle
-from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field
+from typing import Dict, List
 
 from config.settings import settings
 
@@ -29,6 +29,7 @@ from config.settings import settings
 @dataclass
 class Message:
     """单条消息"""
+
     role: str  # "user" | "assistant" | "system"
     content: str
     timestamp: float = field(default_factory=time.time)
@@ -69,7 +70,7 @@ class ShortTermMemory:
             return
 
         # 需要被摘要的旧消息 (保留最近 window_size 条)
-        old_messages = self.messages[:-self.window_size]
+        old_messages = self.messages[: -self.window_size]
         if not old_messages:
             return
 
@@ -88,7 +89,7 @@ class ShortTermMemory:
             self.summary = new_summary
 
         # 只保留最近窗口的消息
-        self.messages = self.messages[-self.window_size:]
+        self.messages = self.messages[-self.window_size :]
 
     def _generate_summary(self, messages: List[Message]) -> str:
         """使用 LLM 摘要旧消息"""
@@ -97,8 +98,7 @@ class ShortTermMemory:
             return self._simple_summary(messages)
 
         conversation = "\n".join(
-            f"{'用户' if m.role == 'user' else '助手'}: {m.content[:200]}"
-            for m in messages
+            f"{'用户' if m.role == 'user' else '助手'}: {m.content[:200]}" for m in messages
         )
 
         prompt = f"""请将以下对话历史压缩为简洁摘要，保留关键信息（用户意图、偏好、重要结论）。
@@ -122,7 +122,7 @@ class ShortTermMemory:
         """
         if not self.llm:
             # 无 LLM 时简单截断
-            return combined_summary[:self.MAX_SUMMARY_LENGTH]
+            return combined_summary[: self.MAX_SUMMARY_LENGTH]
 
         prompt = f"""以下是一段过长的对话历史摘要，请将其进一步压缩为简洁摘要，
 保留最重要的信息（用户偏好、关键决策、核心需求），删除冗余细节。
@@ -138,9 +138,9 @@ class ShortTermMemory:
             # 确保压缩后的摘要确实更短
             if len(compressed) < len(combined_summary):
                 return compressed
-            return combined_summary[:self.MAX_SUMMARY_LENGTH]
+            return combined_summary[: self.MAX_SUMMARY_LENGTH]
         except Exception:
-            return combined_summary[:self.MAX_SUMMARY_LENGTH]
+            return combined_summary[: self.MAX_SUMMARY_LENGTH]
 
     def _simple_summary(self, messages: List[Message]) -> str:
         """无 LLM 时的简单摘要"""
@@ -162,17 +162,16 @@ class ShortTermMemory:
 
         # 如果有摘要，作为 system 消息注入
         if self.summary:
-            result.append({
-                "role": "system",
-                "content": f"[对话历史摘要]\n{self.summary}"
-            })
+            result.append({"role": "system", "content": f"[对话历史摘要]\n{self.summary}"})
 
         # 添加最近窗口的消息
         for msg in self.messages:
-            result.append({
-                "role": msg.role,
-                "content": msg.content,
-            })
+            result.append(
+                {
+                    "role": msg.role,
+                    "content": msg.content,
+                }
+            )
 
         return result
 
@@ -189,6 +188,7 @@ class ShortTermMemory:
 @dataclass
 class MemoryItem:
     """长期记忆条目"""
+
     content: str  # 记忆内容
     category: str  # "preference" | "fact" | "decision"
     session_id: str
@@ -251,7 +251,7 @@ class LongTermMemory:
         if os.path.exists(faiss_file) and self.embedder:
             try:
                 import faiss
-                import numpy as np
+
                 self._faiss_index = faiss.read_index(faiss_file)
             except Exception:
                 pass
@@ -366,9 +366,10 @@ class LongTermMemory:
         if self._faiss_index is not None and self.embedder:
             try:
                 import numpy as np
-                query_emb = self.embedder.encode(
-                    [query], normalize_embeddings=True
-                ).astype(np.float32)
+
+                query_emb = self.embedder.encode([query], normalize_embeddings=True).astype(
+                    np.float32
+                )
                 scores, indices = self._faiss_index.search(query_emb, min(k, len(self.memories)))
 
                 results = []
@@ -376,11 +377,13 @@ class LongTermMemory:
                     if idx < 0 or idx >= len(self.memories):
                         continue
                     mem = self.memories[idx]
-                    results.append({
-                        "content": mem.content,
-                        "category": mem.category,
-                        "score": float(score),
-                    })
+                    results.append(
+                        {
+                            "content": mem.content,
+                            "category": mem.category,
+                            "score": float(score),
+                        }
+                    )
                 return results
             except Exception:
                 pass
@@ -391,11 +394,13 @@ class LongTermMemory:
         for mem in self.memories:
             score = sum(1 for kw in query_lower.split() if kw in mem.content.lower())
             if score > 0:
-                results.append({
-                    "content": mem.content,
-                    "category": mem.category,
-                    "score": score / max(len(query_lower.split()), 1),
-                })
+                results.append(
+                    {
+                        "content": mem.content,
+                        "category": mem.category,
+                        "score": score / max(len(query_lower.split()), 1),
+                    }
+                )
         results.sort(key=lambda x: x["score"], reverse=True)
         return results[:k]
 
@@ -422,10 +427,14 @@ class MemoryManager:
         self.llm = llm
         self.embedder = embedder
         self._short_term: Dict[str, ShortTermMemory] = {}
-        self._long_term = LongTermMemory(
-            embedder=embedder,
-            llm=llm,
-        ) if settings.memory_long_term_enabled else None
+        self._long_term = (
+            LongTermMemory(
+                embedder=embedder,
+                llm=llm,
+            )
+            if settings.memory_long_term_enabled
+            else None
+        )
 
     def get_short_term(self, session_id: str) -> ShortTermMemory:
         """获取或创建会话的短期记忆"""
@@ -462,10 +471,12 @@ class MemoryManager:
         if self._long_term and current_query:
             long_term_ctx = self._long_term.get_context_for_query(current_query)
             if long_term_ctx:
-                messages.append({
-                    "role": "system",
-                    "content": long_term_ctx,
-                })
+                messages.append(
+                    {
+                        "role": "system",
+                        "content": long_term_ctx,
+                    }
+                )
 
         # 短期记忆 (摘要 + 最近窗口)
         stm = self.get_short_term(session_id)
@@ -477,8 +488,7 @@ class MemoryManager:
         """获取会话历史 (用于 API 返回)"""
         stm = self.get_short_term(session_id)
         return [
-            {"role": m.role, "content": m.content, "metadata": m.metadata}
-            for m in stm.messages
+            {"role": m.role, "content": m.content, "metadata": m.metadata} for m in stm.messages
         ]
 
     def clear_session(self, session_id: str):

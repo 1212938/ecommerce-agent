@@ -11,23 +11,24 @@ Agent 单元测试
     或直接运行:
     python tests/test_agents.py
 """
-import sys
+
 import os
+import sys
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, patch
 
-from config.settings import settings
 from orchestration.router import RouterAgent
-
 
 # ------------------------------------------------------------------ #
 #  Router Agent 测试
 # ------------------------------------------------------------------ #
+
 
 class TestRouterAgent:
     """路由器测试"""
@@ -97,12 +98,14 @@ class TestRouterAgent:
 #  Classify Agent 测试（规则降级模式）
 # ------------------------------------------------------------------ #
 
+
 class TestClassifyAgent:
     """分类 Agent 测试（使用规则降级模式，不依赖模型文件）"""
 
     @pytest.fixture
     def agent(self):
         from agents.classify_agent import ClassifyAgent
+
         # 指定不存在的路径，触发规则降级
         return ClassifyAgent(
             model_path="/nonexistent/model",
@@ -143,19 +146,23 @@ class TestClassifyAgent:
 #  Order Agent 测试
 # ------------------------------------------------------------------ #
 
+
 class TestOrderAgent:
     """订单 Agent 测试"""
 
     @pytest.fixture
     def agent(self):
         from agents.order_agent import OrderAgent
-        return OrderAgent(db_config={
-            "host": "localhost",
-            "port": 3306,
-            "user": "root",
-            "password": "",
-            "database": "test",
-        })
+
+        return OrderAgent(
+            db_config={
+                "host": "localhost",
+                "port": 3306,
+                "user": "root",
+                "password": "",
+                "database": "test",
+            }
+        )
 
     def test_extract_order_id_alpha(self, agent):
         """测试订单号提取 - 字母数字混合"""
@@ -188,12 +195,14 @@ class TestOrderAgent:
 #  Recommend Agent 测试
 # ------------------------------------------------------------------ #
 
+
 class TestRecommendAgent:
     """推荐 Agent 测试"""
 
     @pytest.fixture
     def agent(self):
         from agents.recommend_agent import RecommendAgent
+
         mock_neo4j = MagicMock()
         mock_llm = MagicMock()
         return RecommendAgent(neo4j_driver=mock_neo4j, llm=mock_llm)
@@ -224,12 +233,14 @@ class TestRecommendAgent:
 #  Chitchat Agent 测试
 # ------------------------------------------------------------------ #
 
+
 class TestChitchatAgent:
     """闲聊 Agent 测试"""
 
     @pytest.fixture
     def agent(self):
         from agents.chitchat_agent import ChitchatAgent
+
         mock_llm = MagicMock()
         mock_llm.invoke.return_value = MagicMock(content="你好！有什么可以帮你的？")
         return ChitchatAgent(llm=mock_llm)

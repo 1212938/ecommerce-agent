@@ -9,8 +9,8 @@
 学习参考: llm-based-recommender 的 LangGraph 推荐流程
           ec_graph 的 GNN 实体嵌入 (可扩展)
 """
+
 import json
-from collections import defaultdict
 from typing import Optional
 
 from agents.tools.base import BaseAgentTool
@@ -45,6 +45,7 @@ class RecommendAgent(BaseAgentTool):
         if not name:
             return name
         import re
+
         cleaned = re.sub(r"商品\d+$", "", name).strip()
         return cleaned or name
 
@@ -111,9 +112,7 @@ class RecommendAgent(BaseAgentTool):
         # Step 4: 格式化输出
         return self._format_recommendations(reranked[:top_k])
 
-    def _graph_based_recommend(
-        self, query: str, user_profile: dict, top_k: int
-    ) -> list:
+    def _graph_based_recommend(self, query: str, user_profile: dict, top_k: int) -> list:
         """
         基于知识图谱的协同推荐
 
@@ -150,11 +149,14 @@ class RecommendAgent(BaseAgentTool):
 
         try:
             with self.neo4j_driver.session(default_transaction_timeout=10) as session:
-                result = session.run(cypher, {
-                    "category": preferred_category,
-                    "brand": preferred_brand,
-                    "top_k": top_k,
-                })
+                result = session.run(
+                    cypher,
+                    {
+                        "category": preferred_category,
+                        "brand": preferred_brand,
+                        "top_k": top_k,
+                    },
+                )
                 records = []
                 for r in result:
                     brands = r.get("brands", []) or []
@@ -175,7 +177,8 @@ class RecommendAgent(BaseAgentTool):
                         if price_range:
                             min_p, max_p = price_range
                             valid_prices = [
-                                float(p) for p in prices
+                                float(p)
+                                for p in prices
                                 if p and self._in_range(float(p), min_p, max_p)
                             ]
                             if not valid_prices:
@@ -187,9 +190,7 @@ class RecommendAgent(BaseAgentTool):
             print(f"[RecommendAgent] 图查询失败: {e}")
             return []
 
-    def _item_cf_recommend(
-        self, query: str, user_profile: dict, top_k: int
-    ) -> list:
+    def _item_cf_recommend(self, query: str, user_profile: dict, top_k: int) -> list:
         """
         Item-CF 协同过滤推荐 — 基于 MySQL 订单数据的物品协同过滤
 
@@ -266,13 +267,15 @@ class RecommendAgent(BaseAgentTool):
                 max_count = co_purchased[0]["co_count"] if co_purchased else 1
                 results = []
                 for item in co_purchased:
-                    results.append({
-                        "product": item["product_name"],
-                        "id": str(item["product_id"]),
-                        "category": preferred_category,
-                        "score": round(item["co_count"] / max_count * 10, 1),
-                        "reason": f"{item['co_count']}位相似用户共同购买",
-                    })
+                    results.append(
+                        {
+                            "product": item["product_name"],
+                            "id": str(item["product_id"]),
+                            "category": preferred_category,
+                            "score": round(item["co_count"] / max_count * 10, 1),
+                            "reason": f"{item['co_count']}位相似用户共同购买",
+                        }
+                    )
 
                 return results
         except Exception as e:
@@ -281,9 +284,7 @@ class RecommendAgent(BaseAgentTool):
         finally:
             conn.close()
 
-    def _llm_rerank(
-        self, query: str, candidates: list, user_profile: dict, top_k: int
-    ) -> list:
+    def _llm_rerank(self, query: str, candidates: list, user_profile: dict, top_k: int) -> list:
         """
         LLM 重排序：基于用户画像对候选商品进行推理重排
 
@@ -326,7 +327,6 @@ class RecommendAgent(BaseAgentTool):
             reranked.sort(key=lambda x: float(x.get("score", 0)), reverse=True)
 
             # 合并原始信息
-            id_map = {c["id"]: c for c in candidates if "id" in c}
             for item in reranked:
                 for orig in candidates:
                     if orig.get("product") == item.get("product"):
@@ -340,9 +340,7 @@ class RecommendAgent(BaseAgentTool):
             print(f"[RecommendAgent] LLM 重排序失败: {e}")
             return candidates[:top_k]
 
-    def _llm_direct_recommend(
-        self, query: str, user_profile: dict, top_k: int
-    ) -> str:
+    def _llm_direct_recommend(self, query: str, user_profile: dict, top_k: int) -> str:
         """
         图查询和 Item-CF 均无结果时的降级处理
 
@@ -377,9 +375,7 @@ class RecommendAgent(BaseAgentTool):
 
                     if items:
                         header = f"💡 为您推荐 {len(items)} 个热门商品：\n"
-                        return header + "\n".join(
-                            f"{i}. {item}" for i, item in enumerate(items, 1)
-                        )
+                        return header + "\n".join(f"{i}. {item}" for i, item in enumerate(items, 1))
             except Exception as e:
                 print(f"[RecommendAgent] Neo4j 兜底查询失败: {e}")
 
@@ -394,9 +390,21 @@ class RecommendAgent(BaseAgentTool):
 
     # 商品库 15 个一级分类（用于分类提取约束，避免 LLM 自由发挥）
     CATEGORY_CANDIDATES = [
-        "食品生鲜", "医药保健", "服装鞋包", "汽车用品", "母婴用品",
-        "箱包配饰", "美妆护肤", "家居家装", "手机数码", "宠物用品",
-        "运动户外", "家用电器", "珠宝首饰", "图书音像", "礼品鲜花",
+        "食品生鲜",
+        "医药保健",
+        "服装鞋包",
+        "汽车用品",
+        "母婴用品",
+        "箱包配饰",
+        "美妆护肤",
+        "家居家装",
+        "手机数码",
+        "宠物用品",
+        "运动户外",
+        "家用电器",
+        "珠宝首饰",
+        "图书音像",
+        "礼品鲜花",
     ]
 
     def _extract_category(self, query: str) -> Optional[str]:
@@ -448,6 +456,7 @@ class RecommendAgent(BaseAgentTool):
             return (0, float(budget))
         if isinstance(budget, str):
             import re
+
             nums = re.findall(r"\d+\.?\d*", budget)
             if len(nums) >= 2:
                 return (float(nums[0]), float(nums[1]))

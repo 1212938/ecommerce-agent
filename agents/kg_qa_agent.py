@@ -6,9 +6,9 @@
 
 学习参考: ec_graph/src/web/service.py 的 RAG 流程
 """
+
 import json
 import re
-from typing import Optional
 
 from agents.tools.base import BaseAgentTool
 
@@ -29,9 +29,7 @@ class KGQAAgent(BaseAgentTool):
     """
 
     name: str = "kg_qa_agent"
-    description: str = (
-        "知识图谱问答：基于电商知识图谱回答商品属性、品牌关系、分类导航等问题"
-    )
+    description: str = "知识图谱问答：基于电商知识图谱回答商品属性、品牌关系、分类导航等问题"
 
     # KG Schema 描述
     KG_SCHEMA = """
@@ -53,10 +51,10 @@ class KGQAAgent(BaseAgentTool):
     """
 
     # 安全限制常量
-    MAX_CYPHER_LENGTH = 800          # Cypher 语句最大长度（字符）
-    MAX_MATCH_CLAUSES = 5            # 最大 MATCH/OPTIONAL MATCH 子句数
-    MAX_RESULT_ROWS = 100            # 最大返回行数（强制 LIMIT）
-    QUERY_TIMEOUT_SECONDS = 10       # 查询超时（秒）
+    MAX_CYPHER_LENGTH = 800  # Cypher 语句最大长度（字符）
+    MAX_MATCH_CLAUSES = 5  # 最大 MATCH/OPTIONAL MATCH 子句数
+    MAX_RESULT_ROWS = 100  # 最大返回行数（强制 LIMIT）
+    QUERY_TIMEOUT_SECONDS = 10  # 查询超时（秒）
 
     def __init__(self, neo4j_driver, llm):
         super().__init__()
@@ -175,36 +173,57 @@ Cypher查询:"""
 
         # === Level 2: 黑名单 — 绝对禁止的关键词 ===
         forbidden_keywords = [
-            "DELETE", "DROP", "REMOVE", "SET", "CREATE", "MERGE",
-            "CALL", "LOAD CSV", "FOREACH", "PERIODIC", "SHORTEST",
-            "DETACH", "DEPRECATE", "INSTALL", "UNINSTALL", "STOP", "START",
-            "EXPLAIN", "PROFILE", "-schema", "SCHEMA",
+            "DELETE",
+            "DROP",
+            "REMOVE",
+            "SET",
+            "CREATE",
+            "MERGE",
+            "CALL",
+            "LOAD CSV",
+            "FOREACH",
+            "PERIODIC",
+            "SHORTEST",
+            "DETACH",
+            "DEPRECATE",
+            "INSTALL",
+            "UNINSTALL",
+            "STOP",
+            "START",
+            "EXPLAIN",
+            "PROFILE",
+            "-schema",
+            "SCHEMA",
         ]
         for kw in forbidden_keywords:
-            if re.search(r'\b' + re.escape(kw) + r'\b', cypher_upper):
+            if re.search(r"\b" + re.escape(kw) + r"\b", cypher_upper):
                 print(f"[KGQAAgent] L2: 检测到禁止操作 {kw}，拒绝执行")
                 return ""
 
         # === Level 3: 复杂度限制 ===
         # 3a: 长度限制
         if len(cypher) > self.MAX_CYPHER_LENGTH:
-            print(f"[KGQAAgent] L3: Cypher 过长 ({len(cypher)} > {self.MAX_CYPHER_LENGTH})，拒绝执行")
+            print(
+                f"[KGQAAgent] L3: Cypher 过长 ({len(cypher)} > {self.MAX_CYPHER_LENGTH})，拒绝执行"
+            )
             return ""
 
         # 3b: MATCH 子句数量限制（防止笛卡尔积爆炸）
-        match_count = len(re.findall(r'\bMATCH\b', cypher_upper))
+        match_count = len(re.findall(r"\bMATCH\b", cypher_upper))
         if match_count > self.MAX_MATCH_CLAUSES:
-            print(f"[KGQAAgent] L3: MATCH 子句过多 ({match_count} > {self.MAX_MATCH_CLAUSES})，拒绝执行")
+            print(
+                f"[KGQAAgent] L3: MATCH 子句过多 ({match_count} > {self.MAX_MATCH_CLAUSES})，拒绝执行"
+            )
             return ""
 
         # 3c: 必须包含 RETURN
         if "RETURN" not in cypher_upper:
-            print(f"[KGQAAgent] L3: Cypher 缺少 RETURN 子句，拒绝执行")
+            print("[KGQAAgent] L3: Cypher 缺少 RETURN 子句，拒绝执行")
             return ""
 
         # 3d: 检测无 WHERE 的多 MATCH（潜在笛卡尔积）
         if match_count >= 2 and "WHERE" not in cypher_upper:
-            print(f"[KGQAAgent] L3: 多 MATCH 无 WHERE，潜在笛卡尔积风险，拒绝执行")
+            print("[KGQAAgent] L3: 多 MATCH 无 WHERE，潜在笛卡尔积风险，拒绝执行")
             return ""
 
         # === Level 4: 结果集上限 — 无 LIMIT 时自动注入 ===

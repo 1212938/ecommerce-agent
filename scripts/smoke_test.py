@@ -2,10 +2,10 @@
 冒烟测试一键脚本 - 复制以下命令到 PowerShell 运行：
 python scripts/smoke_test.py
 """
-import httpx
-import json
+
 import sys
-import time
+
+import httpx
 
 BASE = "http://localhost:8002"
 PASS = 0
@@ -35,8 +35,11 @@ def main():
     r = httpx.get(f"{BASE}/api/health")
     check("状态码 200", r.status_code == 200, f"实际: {r.status_code}")
     data = r.json()
-    check("8 个 Agent 已注册", data.get("agents_registered") == 8,
-          f"实际: {data.get('agents_registered')}")
+    check(
+        "8 个 Agent 已注册",
+        data.get("agents_registered") == 8,
+        f"实际: {data.get('agents_registered')}",
+    )
 
     # === 2. Agent 列表 ===
     print("\n--- 2. Agent 列表 ---")
@@ -49,20 +52,19 @@ def main():
     # === 3. 商品分类 ===
     print("\n--- 3. 商品分类 (BERT) ---")
     print("       (首次加载模型约需 30 秒，请等待...)")
-    r = client.post(f"{BASE}/api/classify",
-                    json={"title": "小米手机 红米 Note 13", "top_k": 3})
+    r = client.post(f"{BASE}/api/classify", json={"title": "小米手机 红米 Note 13", "top_k": 3})
     check("状态码 200", r.status_code == 200, f"实际: {r.status_code}")
     top_k = r.json().get("top_k", [])
     check("返回 Top-3", len(top_k) == 3, f"实际: {len(top_k)}")
     if top_k:
         print(f"       分类结果: {top_k[0]['category']} ({top_k[0]['confidence']})")
-        check("首选分类=手机数码", top_k[0]["category"] == "手机数码",
-              f"实际: {top_k[0]['category']}")
+        check(
+            "首选分类=手机数码", top_k[0]["category"] == "手机数码", f"实际: {top_k[0]['category']}"
+        )
 
     # === 4. 商品搜索 ===
     print("\n--- 4. 商品搜索 (FAISS) ---")
-    r = client.post(f"{BASE}/api/search",
-                    json={"query": "蓝牙耳机", "top_k": 5})
+    r = client.post(f"{BASE}/api/search", json={"query": "蓝牙耳机", "top_k": 5})
     check("状态码 200", r.status_code == 200, f"实际: {r.status_code}")
     result = r.json().get("result", "")
     check("返回搜索结果", len(result) > 0, "结果为空")
@@ -71,22 +73,23 @@ def main():
     # === 5. 意图路由 (7 种) ===
     print("\n--- 5. 意图路由测试 ---")
     tests = [
-        ("搜索蓝牙耳机",       "search",           "search_agent"),
-        ("纸尿裤属于什么类别",  "classify",         "classify_agent"),
-        ("有什么推荐的商品",    "recommend",        "recommend_agent"),
-        ("查询订单 ORD123456", "order",            "order_agent"),
-        ("怎么退货",           "customer_service", "cs_agent"),
-        ("最近销量排行",       "analytics",        "analytics_agent"),
-        ("你好",              "chitchat",         "chitchat_agent"),
+        ("搜索蓝牙耳机", "search", "search_agent"),
+        ("纸尿裤属于什么类别", "classify", "classify_agent"),
+        ("有什么推荐的商品", "recommend", "recommend_agent"),
+        ("查询订单 ORD123456", "order", "order_agent"),
+        ("怎么退货", "customer_service", "cs_agent"),
+        ("最近销量排行", "analytics", "analytics_agent"),
+        ("你好", "chitchat", "chitchat_agent"),
     ]
     for msg, expected_intent, expected_agent in tests:
-        r = client.post(f"{BASE}/api/chat",
-                        json={"message": msg}, timeout=60)
+        r = client.post(f"{BASE}/api/chat", json={"message": msg}, timeout=60)
         d = r.json()
-        ok = (d["intent"] == expected_intent and
-              d["agent_used"] == expected_agent)
-        check(f"[{msg}] -> {expected_intent}/{expected_agent}",
-              ok, f"实际: {d['intent']}/{d['agent_used']}")
+        ok = d["intent"] == expected_intent and d["agent_used"] == expected_agent
+        check(
+            f"[{msg}] -> {expected_intent}/{expected_agent}",
+            ok,
+            f"实际: {d['intent']}/{d['agent_used']}",
+        )
         reply = d.get("message", "")[:80]
         print(f"       回复: {reply}...")
 

@@ -27,31 +27,33 @@
 使用方法:
     python tests/recommendation_eval.py
 """
-import sys
-import os
+
 import json
-import time
 import math
+import os
 import random
-from typing import List, Dict, Optional, Any
+import sys
+import time
 from dataclasses import dataclass, field
-from collections import defaultdict
+from typing import List
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from config.settings import settings
 from langchain_openai import ChatOpenAI
 
+from config.settings import settings
 
 # ------------------------------------------------------------------ #
 #  评估数据结构
 # ------------------------------------------------------------------ #
 
+
 @dataclass
 class RecommendationTestCase:
     """推荐评估测试用例"""
+
     user_id: str
     query: str
     user_profile: dict
@@ -68,6 +70,7 @@ class RecommendationTestCase:
 @dataclass
 class RecommendationResult:
     """推荐结果"""
+
     items: List[dict]  # [{product, id, score, reason, category, price}]
     strategy: str  # "graph_only" | "graph+llm_rerank" | "llm_direct"
     latency_ms: float = 0.0
@@ -77,16 +80,14 @@ class RecommendationResult:
 #  排序质量指标
 # ------------------------------------------------------------------ #
 
+
 class RankingMetrics:
     """推荐排序质量指标"""
 
     @staticmethod
     def dcg_at_k(relevances: List[float], k: int) -> float:
         """DCG@K"""
-        return sum(
-            rel / math.log2(i + 2)
-            for i, rel in enumerate(relevances[:k])
-        )
+        return sum(rel / math.log2(i + 2) for i, rel in enumerate(relevances[:k]))
 
     @staticmethod
     def ndcg_at_k(recommended_ids: List[str], relevant_ids: List[str], k: int) -> float:
@@ -99,10 +100,7 @@ class RankingMetrics:
             return 0.0
 
         # 实际相关性 (二值: 相关=1, 不相关=0)
-        actual_rels = [
-            1.0 if item_id in relevant_ids else 0.0
-            for item_id in recommended_ids[:k]
-        ]
+        actual_rels = [1.0 if item_id in relevant_ids else 0.0 for item_id in recommended_ids[:k]]
 
         # 理想排序
         ideal_rels = [1.0] * min(len(relevant_ids), k)
@@ -164,6 +162,7 @@ class RankingMetrics:
 #  多样性指标
 # ------------------------------------------------------------------ #
 
+
 class DiversityMetrics:
     """推荐多样性指标"""
 
@@ -216,6 +215,7 @@ class DiversityMetrics:
 # ------------------------------------------------------------------ #
 #  模拟点击/转化评估
 # ------------------------------------------------------------------ #
+
 
 class SimulationMetrics:
     """
@@ -301,6 +301,7 @@ class SimulationMetrics:
 #  推荐评估器
 # ------------------------------------------------------------------ #
 
+
 class RecommendationEvaluator:
     """
     推荐 Agent 离线评估器
@@ -352,9 +353,12 @@ class RecommendationEvaluator:
                 LIMIT 20
                 """
                 with self.neo4j_driver.session(default_transaction_timeout=10) as session:
-                    result = session.run(cypher, {
-                        "categories": test_case.preferred_categories,
-                    })
+                    result = session.run(
+                        cypher,
+                        {
+                            "categories": test_case.preferred_categories,
+                        },
+                    )
                     for r in result:
                         relevant_set.add(str(r["id"]))
             except Exception as e:
@@ -364,9 +368,7 @@ class RecommendationEvaluator:
         if test_case.preferred_categories:
             for item in recommended_items:
                 item_cat = item.get("category", "")
-                if item_cat and any(
-                    pref in item_cat for pref in test_case.preferred_categories
-                ):
+                if item_cat and any(pref in item_cat for pref in test_case.preferred_categories):
                     relevant_set.add(str(item.get("id", "")))
 
         # 策略 3: 关键词匹配补充
@@ -493,9 +495,9 @@ class RecommendationEvaluator:
         all_results = {}
 
         for strategy in strategies:
-            print(f"\n{'='*40}")
+            print(f"\n{'=' * 40}")
             print(f"  评估策略: {strategy}")
-            print(f"{'='*40}")
+            print(f"{'=' * 40}")
 
             results = []
             for case in test_cases:
@@ -601,7 +603,7 @@ class RecommendationEvaluator:
 
             results["rerank_impact"] = delta
 
-            print(f"\n  重排影响:")
+            print("\n  重排影响:")
             for k, v in delta.items():
                 sign = "+" if v > 0 else ""
                 print(f"    {k:20s}: {sign}{v}")
@@ -612,6 +614,7 @@ class RecommendationEvaluator:
 # ------------------------------------------------------------------ #
 #  测试用例
 # ------------------------------------------------------------------ #
+
 
 def generate_test_cases() -> List[RecommendationTestCase]:
     """生成推荐评估测试用例（含动态 ground truth 关键词）"""
@@ -695,6 +698,7 @@ def generate_test_cases() -> List[RecommendationTestCase]:
 #  主入口
 # ------------------------------------------------------------------ #
 
+
 def main():
     """运行推荐评估"""
     print("=" * 60)
@@ -712,7 +716,7 @@ def main():
     )
 
     # 初始化推荐 Agent
-    from orchestration.registry import register_all_agents, create_neo4j_driver
+    from orchestration.registry import create_neo4j_driver, register_all_agents
 
     neo4j_driver = None
     try:

@@ -9,10 +9,12 @@
 学习参考: llm-based-recommender 的混合检索方案
           E-Commerce Shopping Assistant 的 BGE + FAISS RAG
 """
-import os
+
 import json
+import os
+from typing import Any, Dict, List, Optional
+
 import numpy as np
-from typing import List, Optional, Dict, Any
 
 from agents.tools.base import BaseAgentTool
 
@@ -31,8 +33,7 @@ class ProductSearchAgent(BaseAgentTool):
 
     name: str = "search_agent"
     description: str = (
-        "商品搜索：根据用户查询进行向量语义+关键词+图结构混合搜索，"
-        "支持按分类和价格范围过滤"
+        "商品搜索：根据用户查询进行向量语义+关键词+图结构混合搜索，支持按分类和价格范围过滤"
     )
 
     # 余弦相似度噪声下限：IndexFlatIP + 归一化向量 ≈ cosine 相似度，
@@ -50,6 +51,7 @@ class ProductSearchAgent(BaseAgentTool):
         if not name:
             return name
         import re
+
         cleaned = re.sub(r"商品\d+$", "", name).strip()
         return cleaned or name
 
@@ -103,7 +105,7 @@ class ProductSearchAgent(BaseAgentTool):
                 # 加载商品元数据映射（FAISS 命中后补充真实名称/价格/分类）
                 self._load_product_meta()
             else:
-                print(f"[SearchAgent] FAISS 索引未找到，请先运行 scripts/build_faiss_index.py")
+                print("[SearchAgent] FAISS 索引未找到，请先运行 scripts/build_faiss_index.py")
         except ImportError:
             print("[SearchAgent] faiss-cpu 未安装，向量检索不可用")
         except Exception as e:
@@ -126,13 +128,8 @@ class ProductSearchAgent(BaseAgentTool):
             try:
                 with open(json_path, "r", encoding="utf-8") as f:
                     products = json.load(f)
-                self._product_meta = {
-                    str(p["id"]): p for p in products if p.get("id")
-                }
-                print(
-                    f"[SearchAgent] 已加载商品元数据映射: "
-                    f"{len(self._product_meta)} 条 (JSON)"
-                )
+                self._product_meta = {str(p["id"]): p for p in products if p.get("id")}
+                print(f"[SearchAgent] 已加载商品元数据映射: {len(self._product_meta)} 条 (JSON)")
                 return
             except Exception as e:
                 print(f"[SearchAgent] 加载商品元数据 JSON 失败: {e}")
@@ -146,9 +143,7 @@ class ProductSearchAgent(BaseAgentTool):
                 RETURN p.id AS id, p.name AS name, c.name AS category,
                        collect(DISTINCT sku.price)[0..1] AS prices
                 """
-                with self.neo4j_driver.session(
-                    default_transaction_timeout=30
-                ) as session:
+                with self.neo4j_driver.session(default_transaction_timeout=30) as session:
                     result = session.run(cypher)
                     for r in result:
                         prices = r.get("prices") or []
@@ -158,10 +153,7 @@ class ProductSearchAgent(BaseAgentTool):
                             "category": r.get("category") or "",
                             "price": prices[0] if prices else "",
                         }
-                print(
-                    f"[SearchAgent] 已加载商品元数据映射: "
-                    f"{len(self._product_meta)} 条 (Neo4j)"
-                )
+                print(f"[SearchAgent] 已加载商品元数据映射: {len(self._product_meta)} 条 (Neo4j)")
             except Exception as e:
                 print(f"[SearchAgent] Neo4j 商品元数据加载失败: {e}")
 
@@ -217,9 +209,7 @@ class ProductSearchAgent(BaseAgentTool):
         vector_results = self._vector_search(query, top_k * 2)
 
         # Step 2: Neo4j 关键词全文检索（复用 ec_graph 的索引）
-        cypher_results = self._neo4j_keyword_search(
-            query, top_k, category, min_price, max_price
-        )
+        cypher_results = self._neo4j_keyword_search(query, top_k, category, min_price, max_price)
 
         # Step 3: Reciprocal Rank Fusion 融合排序
         merged = self._reciprocal_rank_fusion(vector_results, cypher_results)
@@ -237,9 +227,9 @@ class ProductSearchAgent(BaseAgentTool):
         if not self.faiss_index or self.product_ids is None:
             return []
 
-        query_embedding = self.embedder.encode(
-            [query], normalize_embeddings=True
-        ).astype(np.float32)
+        query_embedding = self.embedder.encode([query], normalize_embeddings=True).astype(
+            np.float32
+        )
 
         distances, indices = self.faiss_index.search(query_embedding, top_k)
 
@@ -252,18 +242,20 @@ class ProductSearchAgent(BaseAgentTool):
                 continue
             product_id = str(self.product_ids[idx])
             meta = self._product_meta.get(product_id, {})
-            results.append({
-                "id": product_id,
-                "name": meta.get("name") or f"商品#{product_id}",
-                "category": meta.get("category", ""),
-                "brand": meta.get("brand", ""),
-                "price": meta.get("price", ""),
-                "sales_count": meta.get("sales_count", ""),
-                "popularity_score": meta.get("popularity_score", ""),
-                "score": float(dist),
-                "source": "vector",
-                "rank": rank,
-            })
+            results.append(
+                {
+                    "id": product_id,
+                    "name": meta.get("name") or f"商品#{product_id}",
+                    "category": meta.get("category", ""),
+                    "brand": meta.get("brand", ""),
+                    "price": meta.get("price", ""),
+                    "sales_count": meta.get("sales_count", ""),
+                    "popularity_score": meta.get("popularity_score", ""),
+                    "score": float(dist),
+                    "source": "vector",
+                    "rank": rank,
+                }
+            )
         return results
 
     def _neo4j_keyword_search(
@@ -301,13 +293,16 @@ class ProductSearchAgent(BaseAgentTool):
 
         try:
             with self.neo4j_driver.session(default_transaction_timeout=10) as session:
-                result = session.run(cypher, {
-                    "query": query,
-                    "top_k": top_k,
-                    "category": category,
-                    "min_price": min_price,
-                    "max_price": max_price,
-                })
+                result = session.run(
+                    cypher,
+                    {
+                        "query": query,
+                        "top_k": top_k,
+                        "category": category,
+                        "min_price": min_price,
+                        "max_price": max_price,
+                    },
+                )
                 return [
                     {
                         "id": str(r["id"]),
@@ -343,11 +338,14 @@ class ProductSearchAgent(BaseAgentTool):
         """
         try:
             with self.neo4j_driver.session(default_transaction_timeout=10) as session:
-                result = session.run(cypher, {
-                    "query": query,
-                    "top_k": top_k,
-                    "category": category,
-                })
+                result = session.run(
+                    cypher,
+                    {
+                        "query": query,
+                        "top_k": top_k,
+                        "category": category,
+                    },
+                )
                 return [
                     {
                         "id": str(r["id"]),
@@ -363,6 +361,7 @@ class ProductSearchAgent(BaseAgentTool):
         except Exception as e:
             print(f"[SearchAgent] Neo4j CONTAINS 降级搜索也失败: {e}")
             import traceback
+
             traceback.print_exc()
             return []
 
@@ -386,9 +385,7 @@ class ProductSearchAgent(BaseAgentTool):
             scores[item_id] = scores.get(item_id, 0) + 1 / (k + rank + 1)
             # 合并时保留原始相似度分数（用于展示，RRF 融合分仅用于排序）
             if item_id in items:
-                items[item_id]["score"] = max(
-                    items[item_id].get("score", 0), item.get("score", 0)
-                )
+                items[item_id]["score"] = max(items[item_id].get("score", 0), item.get("score", 0))
             else:
                 items[item_id] = item
 
@@ -400,13 +397,10 @@ class ProductSearchAgent(BaseAgentTool):
                 if "category" in item and "category" not in items[item_id]:
                     items[item_id]["category"] = item["category"]
                 if "name" in item and (
-                    not items[item_id].get("name")
-                    or items[item_id]["name"].startswith("商品#")
+                    not items[item_id].get("name") or items[item_id]["name"].startswith("商品#")
                 ):
                     items[item_id]["name"] = item["name"]
-                items[item_id]["score"] = max(
-                    items[item_id].get("score", 0), item.get("score", 0)
-                )
+                items[item_id]["score"] = max(items[item_id].get("score", 0), item.get("score", 0))
             else:
                 items[item_id] = item
 

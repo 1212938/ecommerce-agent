@@ -7,8 +7,10 @@
 学习参考: Price Pilot 的 OrderAgent
           MultiAgent-Ecom 的 order-agent-service
 """
-import pymysql
+
 from typing import Optional
+
+import pymysql
 
 from agents.tools.base import BaseAgentTool
 
@@ -22,9 +24,7 @@ class OrderAgent(BaseAgentTool):
     """
 
     name: str = "order_agent"
-    description: str = (
-        "订单查询：查询订单状态、物流追踪、订单详情信息"
-    )
+    description: str = "订单查询：查询订单状态、物流追踪、订单详情信息"
 
     def __init__(self, db_config: dict, engine=None):
         super().__init__()
@@ -67,7 +67,6 @@ class OrderAgent(BaseAgentTool):
         try:
             # 优先使用连接池
             if self.engine:
-                from sqlalchemy import text as sa_text
                 conn = self.engine.connect()
                 # 使用 SQLAlchemy 执行（需要用 text() 包装 SQL）
                 order = self._fetch_order_sa(conn, order_id)
@@ -87,7 +86,7 @@ class OrderAgent(BaseAgentTool):
 
         except pymysql.Error as e:
             print(f"[OrderAgent] 数据库查询失败: {e}")
-            return f"订单查询服务暂时不可用，请稍后重试。"
+            return "订单查询服务暂时不可用，请稍后重试。"
         except Exception as e:
             print(f"[OrderAgent] 查询异常: {e}")
             return f"查询失败: {e}"
@@ -102,6 +101,7 @@ class OrderAgent(BaseAgentTool):
     def _fetch_order_sa(self, conn, order_id: str) -> Optional[dict]:
         """使用 SQLAlchemy 连接池查询订单"""
         from sqlalchemy import text as sa_text
+
         table_candidates = ["order_info", "orders", "order", "ods_order_info"]
         for table in table_candidates:
             try:
@@ -119,6 +119,7 @@ class OrderAgent(BaseAgentTool):
     def _fetch_logistics_sa(self, conn, order_id: str) -> Optional[dict]:
         """使用 SQLAlchemy 连接池查询物流"""
         from sqlalchemy import text as sa_text
+
         table_candidates = ["logistics_info", "shipment", "express_info"]
         for table in table_candidates:
             try:
@@ -207,8 +208,12 @@ class OrderAgent(BaseAgentTool):
         status = self._map_order_status(
             order.get("order_status") or order.get("status") or order.get("state")
         )
-        total_amount = order.get("total_amount") or order.get("amount") or order.get("price") or "未知"
-        create_time = order.get("create_time") or order.get("created_at") or order.get("order_time") or "未知"
+        total_amount = (
+            order.get("total_amount") or order.get("amount") or order.get("price") or "未知"
+        )
+        create_time = (
+            order.get("create_time") or order.get("created_at") or order.get("order_time") or "未知"
+        )
         user_id = order.get("user_id") or order.get("uid") or "未知"
 
         lines.append(f"订单号: {order_id}")
@@ -228,7 +233,9 @@ class OrderAgent(BaseAgentTool):
             lines.append("-" * 40)
             tracking_no = logistics.get("tracking_no") or logistics.get("express_no") or "未知"
             company = logistics.get("company") or logistics.get("express_company") or "未知"
-            logistics_status = logistics.get("status") or logistics.get("logistics_status") or "未知"
+            logistics_status = (
+                logistics.get("status") or logistics.get("logistics_status") or "未知"
+            )
 
             lines.append(f"快递公司: {company}")
             lines.append(f"运单号: {tracking_no}")

@@ -3,8 +3,10 @@
 
 使用 LLM 直接回复，保持友好、专业的电商助手人设
 """
-from agents.tools.base import BaseAgentTool
+
 from cachetools import TTLCache
+
+from agents.tools.base import BaseAgentTool
 
 
 class ChitchatAgent(BaseAgentTool):
@@ -19,9 +21,7 @@ class ChitchatAgent(BaseAgentTool):
     """
 
     name: str = "chitchat_agent"
-    description: str = (
-        "闲聊：处理问候、寒暄、闲聊及其他无法分类到专用 Agent 的对话"
-    )
+    description: str = "闲聊：处理问候、寒暄、闲聊及其他无法分类到专用 Agent 的对话"
 
     # 系统人设
     SYSTEM_PROMPT = """你是一个友好、专业的电商智能助手。
@@ -100,10 +100,7 @@ class ChitchatAgent(BaseAgentTool):
 
     def _fallback_reply(self) -> str:
         """LLM 不可用且无问候匹配时的兜底回复"""
-        return (
-            "抱歉，我暂时无法回复。"
-            "您可以尝试搜索商品、查询订单或了解售后政策。"
-        )
+        return "抱歉，我暂时无法回复。您可以尝试搜索商品、查询订单或了解售后政策。"
 
     def _match_greeting(self, text: str) -> str:
         """匹配常见问候语并返回预设回复"""

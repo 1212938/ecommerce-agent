@@ -11,8 +11,9 @@
 7. Item-CF 方法存在性检查（Task 9）
 8. API 服务启动测试
 """
-import sys
+
 import os
+import sys
 import traceback
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -22,6 +23,7 @@ if PROJECT_ROOT not in sys.path:
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 
 results = []
+
 
 def test(name, func):
     """运行测试并记录结果"""
@@ -53,10 +55,12 @@ def test_imports():
     # 本地环境可能是 langchain 1.x，跳过并在测试中单独处理
     def check_react():
         try:
-            from langchain.agents import AgentExecutor
+            from langchain.agents import AgentExecutor  # noqa: F401  # 仅用于探测可用性
+
             check("orchestration.react_orchestrator")
         except ImportError:
             print("    [SKIP] langchain>=1.0 无 AgentExecutor, Docker 环境正常")
+
     test("import orchestration.react_orchestrator", check_react)
 
     test("import agents.kg_qa_agent", lambda: check("agents.kg_qa_agent"))
@@ -71,6 +75,7 @@ def test_model_router():
 
     def check_tiers():
         from orchestration.model_router import ModelTierRouter
+
         router = ModelTierRouter()
         m1 = router.get_model_by_tier(1)
         m2 = router.get_model_by_tier(2)
@@ -82,7 +87,9 @@ def test_model_router():
 
         assert m1.model_name == "deepseek-chat", f"Tier 1 应为 deepseek-chat, 实际 {m1.model_name}"
         assert m2.model_name == "deepseek-chat", f"Tier 2 应为 deepseek-chat, 实际 {m2.model_name}"
-        assert m3.model_name == "deepseek-reasoner", f"Tier 3 应为 deepseek-reasoner, 实际 {m3.model_name}"
+        assert m3.model_name == "deepseek-reasoner", (
+            f"Tier 3 应为 deepseek-reasoner, 实际 {m3.model_name}"
+        )
         assert m1.max_tokens == 512, f"Tier 1 max_tokens 应为 512, 实际 {m1.max_tokens}"
         assert m3.max_tokens == 4096, f"Tier 3 max_tokens 应为 4096, 实际 {m3.max_tokens}"
 
@@ -102,15 +109,20 @@ def test_semantic_cache():
     print("\n=== 3. 语义缓存 (Task 7) ===")
 
     def check_semantic_cache():
-        from orchestration.model_router import SemanticCache, MultiLevelCache
         import numpy as np
+
+        from orchestration.model_router import MultiLevelCache, SemanticCache
 
         # 测试 SemanticCache 基本功能
         def mock_embed(text):
             # 使用 hash 生成确定性但分散的 embedding (8维)
             import hashlib
+
             h = hashlib.md5(text.encode()).hexdigest()
-            vec = np.array([int(h[i:i2], 16) / 65535.0 for i, i2 in zip(range(0, 16, 2), range(2, 18, 2))], dtype=np.float32)
+            vec = np.array(
+                [int(h[i:i2], 16) / 65535.0 for i, i2 in zip(range(0, 16, 2), range(2, 18, 2))],
+                dtype=np.float32,
+            )
             norm = np.linalg.norm(vec)
             return vec / norm if norm > 0 else vec
 
@@ -127,7 +139,7 @@ def test_semantic_cache():
         mlc = MultiLevelCache(embed_fn=mock_embed)
         mlc.set("intent|query1", "cached_response", query="query1")
         got = mlc.get("intent|query1", query="query1")
-        assert got == "cached_response", f"L1 精确匹配应命中"
+        assert got == "cached_response", "L1 精确匹配应命中"
 
         stats = mlc.get_stats()
         print(f"    缓存统计: {stats}")
@@ -142,7 +154,7 @@ def test_memory():
     print("\n=== 4. 记忆系统递归摘要 (Task 10) ===")
 
     def check_recursive_summary():
-        from orchestration.memory import ShortTermMemory, Message
+        from orchestration.memory import ShortTermMemory
 
         # 无 LLM 模式测试
         stm = ShortTermMemory(window_size=3, summary_threshold=4, llm=None)
@@ -157,10 +169,14 @@ def test_memory():
         assert stm.summary, "摘要不应为空"
         # 摘要后保留 window_size 条，但新消息会累积到 threshold 才再次触发
         # 所以消息数范围: window_size <= len(messages) <= summary_threshold + 1
-        assert len(stm.messages) <= stm.summary_threshold + 1, f"消息数应 <= {stm.summary_threshold + 1}, 实际 {len(stm.messages)}"
+        assert len(stm.messages) <= stm.summary_threshold + 1, (
+            f"消息数应 <= {stm.summary_threshold + 1}, 实际 {len(stm.messages)}"
+        )
         print(f"    摘要长度: {len(stm.summary)} 字符")
         print(f"    摘要内容: {stm.summary[:80]}...")
-        print(f"    保留消息数: {len(stm.messages)} (window={stm.window_size}, threshold={stm.summary_threshold})")
+        print(
+            f"    保留消息数: {len(stm.messages)} (window={stm.window_size}, threshold={stm.summary_threshold})"
+        )
 
     test("递归摘要 + 长度控制", check_recursive_summary)
 
@@ -175,12 +191,14 @@ def test_anti_loop():
         # langchain>=1.0 无 AgentExecutor, 直接测试 RepeatDetectionCallback 逻辑
         # 回调类本身不依赖 langchain, 只是定义在 react_orchestrator.py 中
         import importlib
+
         try:
             mod = importlib.import_module("orchestration.react_orchestrator")
             RepeatDetectionCallback = mod.RepeatDetectionCallback
         except ImportError:
             # 如果整个模块无法导入, 直接定义回调类测试
             from collections import defaultdict
+
             from langchain_core.callbacks import BaseCallbackHandler
 
             class RepeatDetectionCallback(BaseCallbackHandler):
@@ -271,7 +289,9 @@ def test_cypher_security():
         print(f"    自动注入 LIMIT: {result[-30:]}")
 
         # 测试 5: 过多 MATCH 应被拒绝
-        too_many = "MATCH (a) MATCH (b) MATCH (c) MATCH (d) MATCH (e) MATCH (f) WHERE a.id=b.id RETURN a"
+        too_many = (
+            "MATCH (a) MATCH (b) MATCH (c) MATCH (d) MATCH (e) MATCH (f) WHERE a.id=b.id RETURN a"
+        )
         result = agent._entity_alignment(too_many)
         assert result == "", "6 个 MATCH 应被拒绝"
 
@@ -280,7 +300,7 @@ def test_cypher_security():
         result = agent._entity_alignment(cartesian)
         assert result == "", "多 MATCH 无 WHERE 应被拒绝"
 
-        print(f"    通过 6 项安全测试")
+        print("    通过 6 项安全测试")
 
     test("Cypher 4 层安全校验", check_security)
 
@@ -292,23 +312,28 @@ def test_item_cf():
     print("\n=== 7. Item-CF 协同过滤 (Task 9) ===")
 
     def check_item_cf():
-        from agents.recommend_agent import RecommendAgent
         import inspect
 
+        from agents.recommend_agent import RecommendAgent
+
         # 检查方法存在
-        assert hasattr(RecommendAgent, '_item_cf_recommend'), "RecommendAgent 应有 _item_cf_recommend 方法"
+        assert hasattr(RecommendAgent, "_item_cf_recommend"), (
+            "RecommendAgent 应有 _item_cf_recommend 方法"
+        )
 
         # 检查 __init__ 接受 db_config 参数
         sig = inspect.signature(RecommendAgent.__init__)
-        assert 'db_config' in sig.parameters, f"__init__ 应接受 db_config 参数, 实际参数: {list(sig.parameters.keys())}"
+        assert "db_config" in sig.parameters, (
+            f"__init__ 应接受 db_config 参数, 实际参数: {list(sig.parameters.keys())}"
+        )
 
         # 检查 recommend 方法中调用了 _item_cf_recommend
         source = inspect.getsource(RecommendAgent.recommend)
-        assert '_item_cf_recommend' in source, "recommend 方法应调用 _item_cf_recommend"
+        assert "_item_cf_recommend" in source, "recommend 方法应调用 _item_cf_recommend"
 
-        print(f"    _item_cf_recommend 方法存在")
-        print(f"    __init__ 接受 db_config 参数")
-        print(f"    recommend() 集成 Item-CF 调用")
+        print("    _item_cf_recommend 方法存在")
+        print("    __init__ 接受 db_config 参数")
+        print("    recommend() 集成 Item-CF 调用")
 
     test("Item-CF 方法与集成", check_item_cf)
 
@@ -321,7 +346,8 @@ def test_api():
 
     def check_api_import():
         from api.app import app
-        routes = [r.path for r in app.routes if hasattr(r, 'path')]
+
+        routes = [r.path for r in app.routes if hasattr(r, "path")]
         print(f"    API 路由: {routes}")
         assert "/api/chat" in routes or "/chat" in str(routes), "应有 chat 路由"
 

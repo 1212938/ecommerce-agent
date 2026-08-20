@@ -14,9 +14,10 @@
     data/faiss_index/faq/index.faiss — LangChain FAISS 索引
     data/faiss_index/faq/index.pkl   — 索引元数据
 """
-import sys
-import os
+
 import json
+import os
+import sys
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
@@ -102,7 +103,7 @@ def build_faq_knowledge_base():
     vector_store = None
 
     for i in range(0, len(faqs), batch_size):
-        batch = faqs[i:i + batch_size]
+        batch = faqs[i : i + batch_size]
         if vector_store is None:
             vector_store = LCFAISS.from_texts(batch, embedding=embedding_model)
         else:
@@ -114,7 +115,7 @@ def build_faq_knowledge_base():
     os.makedirs(faq_dir, exist_ok=True)
     vector_store.save_local(faq_dir)
 
-    print(f"\n[FAQ Builder] FAQ 知识库构建完成!")
+    print("\n[FAQ Builder] FAQ 知识库构建完成!")
     print(f"  索引目录: {faq_dir}")
     print(f"  FAQ 数量: {len(faqs)}")
 

@@ -9,10 +9,12 @@ Agent 注册中心 — 统一初始化所有组件
 
 学习参考: Price Pilot 的 agent 初始化模式
 """
+
 import os
 from typing import Optional
 
 from langchain_openai import ChatOpenAI
+
 from config.settings import settings
 
 
@@ -32,8 +34,8 @@ def create_llm() -> ChatOpenAI:
         base_url=settings.deepseek_base_url,
         temperature=settings.llm_temperature,
         max_tokens=settings.llm_max_tokens,
-        timeout=settings.request_timeout,       # 30s 超时
-        max_retries=settings.max_retries,        # 最多重试 3 次
+        timeout=settings.request_timeout,  # 30s 超时
+        max_retries=settings.max_retries,  # 最多重试 3 次
     )
 
 
@@ -64,10 +66,10 @@ def create_mysql_engine():
 
     engine = create_engine(
         url,
-        pool_size=5,          # 常驻连接数
-        max_overflow=10,      # 突发连接数
-        pool_pre_ping=True,   # 自动检测断连
-        pool_recycle=3600,    # 1小时回收
+        pool_size=5,  # 常驻连接数
+        max_overflow=10,  # 突发连接数
+        pool_pre_ping=True,  # 自动检测断连
+        pool_recycle=3600,  # 1小时回收
     )
     print("[Registry] MySQL 连接池已创建")
     return engine
@@ -89,14 +91,14 @@ def register_all_agents(
     Returns:
         {"search_agent": ProductSearchAgent(), "kg_qa_agent": KGQAAgent(), ...}
     """
-    from agents.search_agent import ProductSearchAgent
-    from agents.kg_qa_agent import KGQAAgent
-    from agents.classify_agent import ClassifyAgent
-    from agents.recommend_agent import RecommendAgent
-    from agents.order_agent import OrderAgent
-    from agents.cs_agent import CustomerServiceAgent
     from agents.analytics_agent import AnalyticsAgent
     from agents.chitchat_agent import ChitchatAgent
+    from agents.classify_agent import ClassifyAgent
+    from agents.cs_agent import CustomerServiceAgent
+    from agents.kg_qa_agent import KGQAAgent
+    from agents.order_agent import OrderAgent
+    from agents.recommend_agent import RecommendAgent
+    from agents.search_agent import ProductSearchAgent
 
     # 创建 LLM 实例
     if llm is None:
@@ -117,6 +119,7 @@ def register_all_agents(
     shared_embedder = None
     try:
         from sentence_transformers import SentenceTransformer
+
         shared_embedder = SentenceTransformer(settings.embedding_model)
         print(f"[Registry] 共享嵌入模型已加载: {settings.embedding_model}")
     except Exception as e:
@@ -124,9 +127,8 @@ def register_all_agents(
 
     # 分类模型标签文件路径
     import os
-    labels_path = os.path.join(
-        os.path.dirname(settings.classify_model_path), "labels.txt"
-    )
+
+    labels_path = os.path.join(os.path.dirname(settings.classify_model_path), "labels.txt")
     if not os.path.exists(labels_path):
         labels_path = os.path.join(settings.classify_model_path, "labels.txt")
 

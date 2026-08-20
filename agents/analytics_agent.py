@@ -6,9 +6,8 @@
 
 学习参考: Price Pilot 的 AnalyticsAgent
 """
+
 import pymysql
-import json
-from typing import Optional
 
 from agents.tools.base import BaseAgentTool
 
@@ -27,9 +26,7 @@ class AnalyticsAgent(BaseAgentTool):
     """
 
     name: str = "analytics_agent"
-    description: str = (
-        "数据分析：查询销售趋势、商品排行、品类占比等电商数据分析"
-    )
+    description: str = "数据分析：查询销售趋势、商品排行、品类占比等电商数据分析"
 
     def __init__(self, db_config: dict, llm=None, engine=None):
         super().__init__()
@@ -184,7 +181,10 @@ class AnalyticsAgent(BaseAgentTool):
             result = {}
 
             # 用户总数
-            for sql in ["SELECT COUNT(*) AS total FROM user_info", "SELECT COUNT(*) AS total FROM users"]:
+            for sql in [
+                "SELECT COUNT(*) AS total FROM user_info",
+                "SELECT COUNT(*) AS total FROM users",
+            ]:
                 try:
                     cursor.execute(sql)
                     result["total_users"] = cursor.fetchone().get("total", 0)
@@ -193,7 +193,10 @@ class AnalyticsAgent(BaseAgentTool):
                     continue
 
             # 订单总数
-            for sql in ["SELECT COUNT(*) AS total FROM order_info", "SELECT COUNT(*) AS total FROM orders"]:
+            for sql in [
+                "SELECT COUNT(*) AS total FROM order_info",
+                "SELECT COUNT(*) AS total FROM orders",
+            ]:
                 try:
                     cursor.execute(sql)
                     result["total_orders"] = cursor.fetchone().get("total", 0)

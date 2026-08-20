@@ -10,10 +10,11 @@ BERT 商品分类模型 — 本地推理测试脚本
     --model_path  模型路径 (默认: models/product_classification/checkpoint/best)
     --text        单条文本测试
 """
-import sys
-import os
-import json
+
 import argparse
+import json
+import os
+import sys
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
@@ -25,9 +26,7 @@ def parse_args():
     parser.add_argument(
         "--model_path",
         type=str,
-        default=os.path.join(
-            PROJECT_ROOT, "models", "best"
-        ),
+        default=os.path.join(PROJECT_ROOT, "models", "best"),
         help="模型路径",
     )
     parser.add_argument("--text", type=str, default=None, help="单条文本测试")
@@ -36,8 +35,8 @@ def parse_args():
 
 def load_model(model_path):
     """加载模型和 tokenizer"""
-    from transformers import AutoTokenizer, AutoModelForSequenceClassification
     import torch
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
     print(f"[Test] 加载模型: {model_path}")
 
@@ -53,12 +52,16 @@ def load_model(model_path):
     if os.path.exists(config_file):
         with open(config_file, "r", encoding="utf-8") as f:
             train_config = json.load(f)
-        print(f"[Test] 训练配置: epochs={train_config.get('epochs')}, "
-              f"batch_size={train_config.get('batch_size')}, "
-              f"lr={train_config.get('learning_rate')}")
+        print(
+            f"[Test] 训练配置: epochs={train_config.get('epochs')}, "
+            f"batch_size={train_config.get('batch_size')}, "
+            f"lr={train_config.get('learning_rate')}"
+        )
         eval_result = train_config.get("eval_result", {})
-        print(f"[Test] 验证集: accuracy={eval_result.get('eval_accuracy', 0):.4f}, "
-              f"f1={eval_result.get('eval_f1', 0):.4f}")
+        print(
+            f"[Test] 验证集: accuracy={eval_result.get('eval_accuracy', 0):.4f}, "
+            f"f1={eval_result.get('eval_f1', 0):.4f}"
+        )
 
     # 加载 tokenizer 和模型
     tokenizer = AutoTokenizer.from_pretrained(model_path)
@@ -103,7 +106,6 @@ def predict(text, tokenizer, model, labels, device, top_k=3):
 
 def run_tests(model_path):
     """运行批量测试"""
-    import torch
 
     tokenizer, model, labels, device = load_model(model_path)
 
@@ -114,7 +116,6 @@ def run_tests(model_path):
         ("壳牌汽车用品商品696", "汽车用品"),
         ("老凤祥珠宝首饰商品194", "珠宝首饰"),
         ("优衣库服装鞋包商品572", "服装鞋包"),
-
         # 真实商品名称 (训练数据中没有的)
         ("iPhone 15 Pro Max 256GB 钛金属", "手机数码"),
         ("戴森 V12 Detect Slim 无线吸尘器", "家用电器"),
@@ -124,7 +125,6 @@ def run_tests(model_path):
         ("海尔冰箱 BCD-470WGHTD1BGZU1", "家用电器"),
         ("好奇铂金装婴儿纸尿裤 XL码", "母婴用品"),
         ("得力文件夹 A4 双夹文件夹", "图书音像"),
-
         # 边界/歧义用例
         ("小米充电宝 20000mAh", "手机数码"),  # 也可能是家用电器
         ("茅台飞天 53度 500ml", "食品生鲜"),
@@ -150,13 +150,13 @@ def run_tests(model_path):
         print(f"{text:<35} {top_label:<12} {top_prob:<10.4f} {expected:<12} {mark}")
 
         if not is_correct or top_prob < 0.9:
-            print(f"  Top-3: ", end="")
+            print("  Top-3: ", end="")
             for label, prob in results:
                 print(f"{label}({prob:.3f}) ", end="")
             print()
 
     print("=" * 70)
-    print(f"准确率: {correct}/{total} = {correct/total*100:.1f}%")
+    print(f"准确率: {correct}/{total} = {correct / total * 100:.1f}%")
     print()
 
     # 混淆分析
@@ -165,8 +165,7 @@ def run_tests(model_path):
         for text, expected in test_cases:
             results = predict(text, tokenizer, model, labels, device, top_k=3)
             if results[0][0] != expected:
-                print(f"  '{text}' → 预测: {results[0][0]} ({results[0][1]:.3f}), "
-                      f"期望: {expected}")
+                print(f"  '{text}' → 预测: {results[0][0]} ({results[0][1]:.3f}), 期望: {expected}")
 
 
 def test_single(text, model_path):
@@ -174,7 +173,7 @@ def test_single(text, model_path):
     tokenizer, model, labels, device = load_model(model_path)
     results = predict(text, tokenizer, model, labels, device, top_k=5)
     print(f"输入: {text}")
-    print(f"Top-5 预测:")
+    print("Top-5 预测:")
     for label, prob in results:
         bar = "█" * int(prob * 30)
         print(f"  {label:<12} {prob:.4f} {bar}")
@@ -190,8 +189,8 @@ if __name__ == "__main__":
 
     # 检查依赖
     try:
-        import torch
-        import transformers
+        import torch  # noqa: F401  # 仅用于依赖可用性探测
+        import transformers  # noqa: F401  # 仅用于依赖可用性探测
     except ImportError as e:
         print(f"[Error] 缺少依赖: {e}")
         print("请先安装: pip install torch transformers")

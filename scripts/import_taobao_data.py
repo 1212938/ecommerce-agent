@@ -20,12 +20,12 @@
     user_behaviors.csv  — 30,000 条行为记录
     user_features.csv   — 5,000 条用户特征
 """
+
 import csv
 import json
 import os
-import sys
 import random
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import datetime
 
 # ============================================================
@@ -44,7 +44,7 @@ STATUS_MAP = {
     "待付款": 1,
     "已付款": 2,
     "已发货": 3,
-    "已收货": 4,   # 已收货归入已完成
+    "已收货": 4,  # 已收货归入已完成
     "已完成": 4,
     "已取消": 5,
     "已退款": 7,
@@ -69,8 +69,7 @@ def read_csv(filename):
 # ============================================================
 # 1. Neo4j 图谱导入脚本
 # ============================================================
-def generate_neo4j_import(orders, products, product_features, users,
-                          user_behaviors, user_features):
+def generate_neo4j_import(orders, products, product_features, users, user_behaviors, user_features):
     """
     生成 Neo4j Cypher 导入脚本
 
@@ -89,7 +88,7 @@ def generate_neo4j_import(orders, products, product_features, users,
     lines = []
     lines.append("// ============================================")
     lines.append("// Neo4j 图谱导入脚本 — 淘宝用户消费数据")
-    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines.append(f"// 生成时间: {ts}")
     lines.append("// ============================================")
     lines.append("")
@@ -100,8 +99,12 @@ def generate_neo4j_import(orders, products, product_features, users,
     # --- 约束 ---
     lines.append("// --- 唯一约束 ---")
     lines.append("CREATE CONSTRAINT spu_id IF NOT EXISTS FOR (p:SPU) REQUIRE p.id IS UNIQUE;")
-    lines.append("CREATE CONSTRAINT category_name IF NOT EXISTS FOR (c:Category3) REQUIRE c.name IS UNIQUE;")
-    lines.append("CREATE CONSTRAINT trademark_name IF NOT EXISTS FOR (t:Trademark) REQUIRE t.name IS UNIQUE;")
+    lines.append(
+        "CREATE CONSTRAINT category_name IF NOT EXISTS FOR (c:Category3) REQUIRE c.name IS UNIQUE;"
+    )
+    lines.append(
+        "CREATE CONSTRAINT trademark_name IF NOT EXISTS FOR (t:Trademark) REQUIRE t.name IS UNIQUE;"
+    )
     lines.append("CREATE CONSTRAINT user_id IF NOT EXISTS FOR (u:User) REQUIRE u.id IS UNIQUE;")
     lines.append("CREATE CONSTRAINT sku_id IF NOT EXISTS FOR (s:SKU) REQUIRE s.id IS UNIQUE;")
     lines.append("")
@@ -170,13 +173,9 @@ def generate_neo4j_import(orders, products, product_features, users,
         sku_id = f"SKU_{pid}"
         name = p["product_name"].replace("'", "\\'")
         price = float(p["price"])
+        lines.append(f"MERGE (s:SKU {{id: '{sku_id}'}}) SET s.name = '{name}', s.price = {price};")
         lines.append(
-            f"MERGE (s:SKU {{id: '{sku_id}'}}) "
-            f"SET s.name = '{name}', s.price = {price};"
-        )
-        lines.append(
-            f"MATCH (p:SPU {{id: '{pid}'}}), (s:SKU {{id: '{sku_id}'}}) "
-            f"MERGE (p)-[:Have]->(s);"
+            f"MATCH (p:SPU {{id: '{pid}'}}), (s:SKU {{id: '{sku_id}'}}) MERGE (p)-[:Have]->(s);"
         )
 
     lines.append("")
@@ -247,18 +246,14 @@ def generate_neo4j_import(orders, products, product_features, users,
     lines.append(f"// --- 购买关系 ({len(buy_relations)} 条, 去重) ---")
     for uid, pid in buy_relations:
         lines.append(
-            f"MATCH (u:User {{id: '{uid}'}}), (p:SPU {{id: '{pid}'}}) "
-            f"MERGE (u)-[:BUY]->(p);"
+            f"MATCH (u:User {{id: '{uid}'}}), (p:SPU {{id: '{pid}'}}) MERGE (u)-[:BUY]->(p);"
         )
 
     lines.append("")
 
     # --- 全文索引 ---
     lines.append("// --- 全文索引 (供 Search Agent 使用) ---")
-    lines.append(
-        "CREATE FULLTEXT INDEX spu_fulltext IF NOT EXISTS "
-        "FOR (p:SPU) ON EACH [p.name];"
-    )
+    lines.append("CREATE FULLTEXT INDEX spu_fulltext IF NOT EXISTS FOR (p:SPU) ON EACH [p.name];")
     lines.append("")
 
     # --- 统计信息 ---
@@ -434,8 +429,18 @@ def generate_mysql_import(orders, products, users, user_features):
     uf_map = {uf["user_id"]: uf for uf in user_features}
 
     # 快递公司列表
-    express_companies = ["顺丰速运", "中通快递", "圆通速递", "申通快递", "韵达速递",
-                         "京东物流", "邮政EMS", "百世快递", "天天快递", "德邦快递"]
+    express_companies = [
+        "顺丰速运",
+        "中通快递",
+        "圆通速递",
+        "申通快递",
+        "韵达速递",
+        "京东物流",
+        "邮政EMS",
+        "百世快递",
+        "天天快递",
+        "德邦快递",
+    ]
 
     # --- order_info + order_detail + logistics + dwd 数据 ---
     lines.append("-- 订单数据导入")
@@ -606,16 +611,18 @@ def generate_faiss_data(products, product_features):
             f"好评率:{pf.get('avg_review_score', 0)}"
         )
 
-        faiss_products.append({
-            "id": pid,
-            "name": p["product_name"],
-            "description": description,
-            "category": p["category"],
-            "brand": p["brand"],
-            "price": float(p["price"]),
-            "sales_count": int(p["sales_count"]),
-            "popularity_score": float(pf.get("popularity_score", 0)),
-        })
+        faiss_products.append(
+            {
+                "id": pid,
+                "name": p["product_name"],
+                "description": description,
+                "category": p["category"],
+                "brand": p["brand"],
+                "price": float(p["price"]),
+                "sales_count": int(p["sales_count"]),
+                "popularity_score": float(pf.get("popularity_score", 0)),
+            }
+        )
 
     output_path = os.path.join(OUTPUT_DIR, "products_for_faiss.json")
     with open(output_path, "w", encoding="utf-8") as f:
@@ -668,40 +675,124 @@ def generate_faq_data(orders, products):
         content = r["review_content"]
 
         if int(float(score)) >= 4:
-            faqs.append({
-                "question": f"{pname}怎么样？质量好吗？",
-                "answer": content,
-                "category": "商品质量",
-            })
+            faqs.append(
+                {
+                    "question": f"{pname}怎么样？质量好吗？",
+                    "answer": content,
+                    "category": "商品质量",
+                }
+            )
         else:
-            faqs.append({
-                "question": f"{pname}有什么缺点？",
-                "answer": content,
-                "category": "商品质量",
-            })
+            faqs.append(
+                {
+                    "question": f"{pname}有什么缺点？",
+                    "answer": content,
+                    "category": "商品质量",
+                }
+            )
 
     # --- 通用电商 FAQ ---
     general_faqs = [
-        {"question": "如何退换货？", "answer": "您可以在收到商品后7天内申请退换货。进入「我的订单」，找到对应订单，点击「申请退换货」即可。退换货商品需保持原包装完好。", "category": "退换货"},
-        {"question": "退货多久能退款？", "answer": "退款会在我们收到退货商品后1-3个工作日内原路退回您的支付账户。请注意查收。", "category": "退换货"},
-        {"question": "如何查看物流信息？", "answer": "您可以在「我的订单」中查看订单详情，里面有物流单号和快递公司信息。也可以直接点击物流信息查看实时物流状态。", "category": "物流"},
-        {"question": "支持哪些支付方式？", "answer": "我们支持微信支付、支付宝、花呗、信用卡、银行卡等多种支付方式，您可以选择最方便的方式进行支付。", "category": "支付"},
-        {"question": "订单多久发货？", "answer": "一般情况下，付款后24小时内发货。节假日可能会有延迟，发货后您会收到短信通知。", "category": "物流"},
-        {"question": "如何修改收货地址？", "answer": "如果订单还未发货，您可以在「我的订单」中修改收货地址。如果已经发货，请联系客服协助处理。", "category": "订单"},
-        {"question": "商品是正品吗？", "answer": "我们所有商品均为正品，支持专柜验货。每个商品都有防伪码，您可以在品牌官网查询真伪。", "category": "商品质量"},
-        {"question": "如何使用优惠券？", "answer": "在结算页面，选择使用优惠券，系统会自动抵扣相应金额。请注意优惠券的使用期限和适用条件。", "category": "优惠"},
-        {"question": "可以开发票吗？", "answer": "可以。在下单时选择「需要发票」，填写发票抬头和税号即可。电子发票会在订单完成后发送到您的邮箱。", "category": "发票"},
-        {"question": "会员等级有什么权益？", "answer": "铜牌会员：享基础积分；银牌会员：享95折优惠；金牌会员：享9折+免邮；钻石会员：享85折+免邮+专属客服+优先发货。", "category": "会员"},
-        {"question": "如何成为金牌会员？", "answer": "累计消费满5000元可升级为金牌会员，累计消费满20000元可升级为钻石会员。系统会自动升级。", "category": "会员"},
-        {"question": "积分怎么用？", "answer": "积分可以在结算时抵扣现金，100积分=1元。也可以在积分商城兑换商品或优惠券。", "category": "优惠"},
-        {"question": "商品保修多久？", "answer": "不同商品保修期不同，一般为1年。具体保修期请查看商品详情页或联系客服咨询。", "category": "售后"},
-        {"question": "如何投诉？", "answer": "您可以通过客服热线、在线客服或「我的订单-投诉建议」进行投诉。我们会在24小时内处理并回复。", "category": "售后"},
-        {"question": "支持货到付款吗？", "answer": "部分地区支持货到付款。在下单时如果地址支持货到付款，会有相应选项。货到付款需支付少量手续费。", "category": "支付"},
-        {"question": "如何取消订单？", "answer": "如果订单还未付款，可以直接取消。如果已付款未发货，请联系客服取消。已发货的订单无法取消，需收到后申请退货。", "category": "订单"},
-        {"question": "快递费怎么算？", "answer": "单笔订单满99元免邮费，不满99元收取10元邮费。偏远地区（新疆、西藏等）可能需要额外邮费。", "category": "物流"},
-        {"question": "商品缺货怎么办？", "answer": "如果商品缺货，我们会尽快补货并通知您。您也可以选择类似商品或申请退款。缺货商品的退款会优先处理。", "category": "订单"},
-        {"question": "如何修改密码？", "answer": "进入「我的-设置-账户安全」，点击「修改密码」，输入旧密码和新密码即可完成修改。", "category": "账户"},
-        {"question": "忘记密码怎么办？", "answer": "在登录页面点击「忘记密码」，通过手机验证码或邮箱重置密码即可。", "category": "账户"},
+        {
+            "question": "如何退换货？",
+            "answer": "您可以在收到商品后7天内申请退换货。进入「我的订单」，找到对应订单，点击「申请退换货」即可。退换货商品需保持原包装完好。",
+            "category": "退换货",
+        },
+        {
+            "question": "退货多久能退款？",
+            "answer": "退款会在我们收到退货商品后1-3个工作日内原路退回您的支付账户。请注意查收。",
+            "category": "退换货",
+        },
+        {
+            "question": "如何查看物流信息？",
+            "answer": "您可以在「我的订单」中查看订单详情，里面有物流单号和快递公司信息。也可以直接点击物流信息查看实时物流状态。",
+            "category": "物流",
+        },
+        {
+            "question": "支持哪些支付方式？",
+            "answer": "我们支持微信支付、支付宝、花呗、信用卡、银行卡等多种支付方式，您可以选择最方便的方式进行支付。",
+            "category": "支付",
+        },
+        {
+            "question": "订单多久发货？",
+            "answer": "一般情况下，付款后24小时内发货。节假日可能会有延迟，发货后您会收到短信通知。",
+            "category": "物流",
+        },
+        {
+            "question": "如何修改收货地址？",
+            "answer": "如果订单还未发货，您可以在「我的订单」中修改收货地址。如果已经发货，请联系客服协助处理。",
+            "category": "订单",
+        },
+        {
+            "question": "商品是正品吗？",
+            "answer": "我们所有商品均为正品，支持专柜验货。每个商品都有防伪码，您可以在品牌官网查询真伪。",
+            "category": "商品质量",
+        },
+        {
+            "question": "如何使用优惠券？",
+            "answer": "在结算页面，选择使用优惠券，系统会自动抵扣相应金额。请注意优惠券的使用期限和适用条件。",
+            "category": "优惠",
+        },
+        {
+            "question": "可以开发票吗？",
+            "answer": "可以。在下单时选择「需要发票」，填写发票抬头和税号即可。电子发票会在订单完成后发送到您的邮箱。",
+            "category": "发票",
+        },
+        {
+            "question": "会员等级有什么权益？",
+            "answer": "铜牌会员：享基础积分；银牌会员：享95折优惠；金牌会员：享9折+免邮；钻石会员：享85折+免邮+专属客服+优先发货。",
+            "category": "会员",
+        },
+        {
+            "question": "如何成为金牌会员？",
+            "answer": "累计消费满5000元可升级为金牌会员，累计消费满20000元可升级为钻石会员。系统会自动升级。",
+            "category": "会员",
+        },
+        {
+            "question": "积分怎么用？",
+            "answer": "积分可以在结算时抵扣现金，100积分=1元。也可以在积分商城兑换商品或优惠券。",
+            "category": "优惠",
+        },
+        {
+            "question": "商品保修多久？",
+            "answer": "不同商品保修期不同，一般为1年。具体保修期请查看商品详情页或联系客服咨询。",
+            "category": "售后",
+        },
+        {
+            "question": "如何投诉？",
+            "answer": "您可以通过客服热线、在线客服或「我的订单-投诉建议」进行投诉。我们会在24小时内处理并回复。",
+            "category": "售后",
+        },
+        {
+            "question": "支持货到付款吗？",
+            "answer": "部分地区支持货到付款。在下单时如果地址支持货到付款，会有相应选项。货到付款需支付少量手续费。",
+            "category": "支付",
+        },
+        {
+            "question": "如何取消订单？",
+            "answer": "如果订单还未付款，可以直接取消。如果已付款未发货，请联系客服取消。已发货的订单无法取消，需收到后申请退货。",
+            "category": "订单",
+        },
+        {
+            "question": "快递费怎么算？",
+            "answer": "单笔订单满99元免邮费，不满99元收取10元邮费。偏远地区（新疆、西藏等）可能需要额外邮费。",
+            "category": "物流",
+        },
+        {
+            "question": "商品缺货怎么办？",
+            "answer": "如果商品缺货，我们会尽快补货并通知您。您也可以选择类似商品或申请退款。缺货商品的退款会优先处理。",
+            "category": "订单",
+        },
+        {
+            "question": "如何修改密码？",
+            "answer": "进入「我的-设置-账户安全」，点击「修改密码」，输入旧密码和新密码即可完成修改。",
+            "category": "账户",
+        },
+        {
+            "question": "忘记密码怎么办？",
+            "answer": "在登录页面点击「忘记密码」，通过手机验证码或邮箱重置密码即可。",
+            "category": "账户",
+        },
     ]
 
     faqs.extend(general_faqs)
@@ -717,17 +808,24 @@ def generate_faq_data(orders, products):
 # ============================================================
 # 6. 数据质量报告
 # ============================================================
-def generate_report(orders, products, product_features, users,
-                    user_behaviors, user_features, neo4j_stats,
-                    mysql_stats, faiss_count, classify_stats, faq_count):
+def generate_report(
+    orders,
+    products,
+    product_features,
+    users,
+    user_behaviors,
+    user_features,
+    neo4j_stats,
+    mysql_stats,
+    faiss_count,
+    classify_stats,
+    faq_count,
+):
     """生成数据质量报告"""
     print("[Report] 生成数据报告...")
 
     # 计算统计信息
-    order_users = set(o["user_id"] for o in orders)
-    order_products = set(o["product_id"] for o in orders)
     behavior_users = set(b["user_id"] for b in user_behaviors)
-    behavior_products = set(b["product_id"] for b in user_behaviors)
 
     status_dist = Counter(o["order_status"] for o in orders)
     cat_dist = Counter(p["category"] for p in products)
@@ -765,10 +863,10 @@ def generate_report(orders, products, product_features, users,
     report.append(f"  用户数:          {len(users)} (良好)")
     report.append(f"  订单数:          {len(orders)} (优秀)")
     report.append(f"  行为记录:        {len(user_behaviors)} (良好)")
-    report.append(f"  人均行为:        {len(user_behaviors)/len(behavior_users):.1f} 条 (中等)")
-    report.append(f"  有评价订单:      {len(reviews)} ({len(reviews)/len(orders)*100:.1f}%)")
+    report.append(f"  人均行为:        {len(user_behaviors) / len(behavior_users):.1f} 条 (中等)")
+    report.append(f"  有评价订单:      {len(reviews)} ({len(reviews) / len(orders) * 100:.1f}%)")
     report.append(f"  价格范围:        ¥{min(prices):.2f} ~ ¥{max(prices):.2f}")
-    report.append(f"  平均价:          ¥{sum(prices)/len(prices):.2f}")
+    report.append(f"  平均价:          ¥{sum(prices) / len(prices):.2f}")
     report.append(f"  订单金额范围:    ¥{min(total_amounts):.2f} ~ ¥{max(total_amounts):.2f}")
     report.append("")
 
@@ -776,28 +874,28 @@ def generate_report(orders, products, product_features, users,
     report.append("-" * 40)
     report.append("  订单状态分布:")
     for k, v in status_dist.most_common():
-        report.append(f"    {k}: {v:,} ({v/len(orders)*100:.1f}%)")
+        report.append(f"    {k}: {v:,} ({v / len(orders) * 100:.1f}%)")
     report.append("")
     report.append("  行为类型分布:")
     for k, v in behavior_dist.most_common():
-        report.append(f"    {k}: {v:,} ({v/len(user_behaviors)*100:.1f}%)")
+        report.append(f"    {k}: {v:,} ({v / len(user_behaviors) * 100:.1f}%)")
     report.append("")
     report.append("  商品类目分布:")
     for k, v in cat_dist.most_common():
-        report.append(f"    {k}: {v} ({v/len(products)*100:.1f}%)")
+        report.append(f"    {k}: {v} ({v / len(products) * 100:.1f}%)")
     report.append("")
     report.append("  会员等级分布:")
     for k, v in member_dist.most_common():
-        report.append(f"    {k}: {v} ({v/len(users)*100:.1f}%)")
+        report.append(f"    {k}: {v} ({v / len(users) * 100:.1f}%)")
     report.append("")
     report.append("  支付方式分布:")
     for k, v in pay_dist.most_common():
-        report.append(f"    {k}: {v:,} ({v/len(orders)*100:.1f}%)")
+        report.append(f"    {k}: {v:,} ({v / len(orders) * 100:.1f}%)")
     report.append("")
 
     report.append("四、生成文件清单")
     report.append("-" * 40)
-    report.append(f"  neo4j_import.cypher      Neo4j 图谱导入脚本")
+    report.append("  neo4j_import.cypher      Neo4j 图谱导入脚本")
     report.append(f"    SPU 商品:      {neo4j_stats['spu']}")
     report.append(f"    Category3:     {neo4j_stats['category']}")
     report.append(f"    Trademark:     {neo4j_stats['brand']}")
@@ -806,7 +904,7 @@ def generate_report(orders, products, product_features, users,
     report.append(f"    行为关系:      {neo4j_stats['behavior']:,}")
     report.append(f"    购买关系:      {neo4j_stats['buy']:,}")
     report.append("")
-    report.append(f"  mysql_gmall.sql          MySQL gmall 数据库脚本")
+    report.append("  mysql_gmall.sql          MySQL gmall 数据库脚本")
     report.append(f"    order_info:            {mysql_stats['order_info']:,}")
     report.append(f"    order_detail:          {mysql_stats['order_detail']:,}")
     report.append(f"    logistics_info:        {mysql_stats['logistics_info']:,}")
@@ -815,7 +913,9 @@ def generate_report(orders, products, product_features, users,
     report.append(f"    user_info:             {mysql_stats['user_info']:,}")
     report.append("")
     report.append(f"  products_for_faiss.json  FAISS 索引数据 ({faiss_count} 个商品)")
-    report.append(f"  classify_train.csv       分类训练集 ({classify_stats['count']} 条, {classify_stats['categories']} 类)")
+    report.append(
+        f"  classify_train.csv       分类训练集 ({classify_stats['count']} 条, {classify_stats['categories']} 类)"
+    )
     report.append(f"  faq_data.json            客服 FAQ 语料 ({faq_count} 条)")
     report.append("")
 
@@ -908,9 +1008,17 @@ def main():
     print()
 
     generate_report(
-        orders, products, product_features, users,
-        user_behaviors, user_features,
-        neo4j_stats, mysql_stats, faiss_count, classify_stats, faq_count
+        orders,
+        products,
+        product_features,
+        users,
+        user_behaviors,
+        user_features,
+        neo4j_stats,
+        mysql_stats,
+        faiss_count,
+        classify_stats,
+        faq_count,
     )
     print()
 

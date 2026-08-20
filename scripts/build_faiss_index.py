@@ -13,9 +13,10 @@
     data/faiss_index/products.index  — FAISS 索引文件
     data/faiss_index/product_ids.npy — 商品 ID 映射
 """
-import sys
-import os
+
 import json
+import os
+import sys
 
 # 确保项目根目录在路径中
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -23,6 +24,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 import numpy as np
+
 from config.settings import settings
 
 
@@ -62,13 +64,15 @@ def load_products_from_neo4j():
         """)
 
         for r in result:
-            products.append({
-                "id": str(r["id"]) if r["id"] else "",
-                "name": r["name"] or "",
-                "description": r["description"] or "",
-                "category": r["category"] or "",
-                "brand": r["brand"] or "",
-            })
+            products.append(
+                {
+                    "id": str(r["id"]) if r["id"] else "",
+                    "name": r["name"] or "",
+                    "description": r["description"] or "",
+                    "category": r["category"] or "",
+                    "brand": r["brand"] or "",
+                }
+            )
 
     driver.close()
     print(f"[FAISS Builder] 从 Neo4j 获取 {len(products)} 个商品")
@@ -113,7 +117,7 @@ def build_product_index(use_neo4j=False):
     batch_size = 256
     all_embeddings = []
     for i in range(0, len(texts), batch_size):
-        batch = texts[i:i + batch_size]
+        batch = texts[i : i + batch_size]
         embeddings = embedder.encode(batch, normalize_embeddings=True)
         all_embeddings.append(embeddings)
         print(f"  进度: {min(i + batch_size, len(texts))}/{len(texts)}")
@@ -138,7 +142,7 @@ def build_product_index(use_neo4j=False):
     faiss.write_index(index, index_file)
     np.save(ids_file, np.array([p["id"] for p in products]))
 
-    print(f"\n[FAISS Builder] ✅ 索引构建完成!")
+    print("\n[FAISS Builder] ✅ 索引构建完成!")
     print(f"  索引文件: {index_file}")
     print(f"  ID 映射: {ids_file}")
     print(f"  商品数量: {len(products)}")

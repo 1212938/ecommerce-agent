@@ -12,13 +12,13 @@
     --batch_size    每次 API 调用生成数量 (默认 50)
     --output        输出文件路径 (默认 data/processed/classify_train_v2.csv)
 """
-import os
-import sys
-import csv
-import json
-import time
-import random
+
 import argparse
+import csv
+import os
+import random
+import sys
+import time
 from collections import defaultdict
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -26,6 +26,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from dotenv import load_dotenv
+
 load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 # ============================================================
@@ -33,9 +34,21 @@ load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 # ============================================================
 
 CATEGORIES = [
-    "手机数码", "服装鞋包", "美妆护肤", "食品生鲜", "家用电器",
-    "母婴用品", "汽车用品", "珠宝首饰", "家居家装", "运动户外",
-    "图书音像", "宠物用品", "箱包配饰", "医药保健", "礼品鲜花",
+    "手机数码",
+    "服装鞋包",
+    "美妆护肤",
+    "食品生鲜",
+    "家用电器",
+    "母婴用品",
+    "汽车用品",
+    "珠宝首饰",
+    "家居家装",
+    "运动户外",
+    "图书音像",
+    "宠物用品",
+    "箱包配饰",
+    "医药保健",
+    "礼品鲜花",
 ]
 
 # 每个类别的品类描述 + 关键词提示，帮助 LLM 生成更真实的标题
@@ -92,7 +105,10 @@ def call_deepseek(api_key, base_url, model, prompt, max_retries=3):
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": "你是一个电商平台商品标题生成专家。你擅长生成真实的、多样化的淘宝风格商品标题。"},
+            {
+                "role": "system",
+                "content": "你是一个电商平台商品标题生成专家。你擅长生成真实的、多样化的淘宝风格商品标题。",
+            },
             {"role": "user", "content": prompt},
         ],
         "temperature": 0.9,
@@ -106,7 +122,7 @@ def call_deepseek(api_key, base_url, model, prompt, max_retries=3):
             data = resp.json()
             return data["choices"][0]["message"]["content"]
         except Exception as e:
-            print(f"  [Retry {attempt+1}/{max_retries}] API 错误: {e}")
+            print(f"  [Retry {attempt + 1}/{max_retries}] API 错误: {e}")
             if attempt < max_retries - 1:
                 time.sleep(3 * (attempt + 1))
     return None
@@ -144,7 +160,7 @@ def parse_titles(response, category):
         # 去掉可能的编号前缀
         for prefix_pattern in ["1.", "2.", "3.", "- ", "* ", "• "]:
             if line.startswith(prefix_pattern):
-                line = line[len(prefix_pattern):].strip()
+                line = line[len(prefix_pattern) :].strip()
         # 去掉引号
         line = line.strip('"').strip("'").strip("`").strip()
         # 过滤空行和太短的
@@ -181,8 +197,10 @@ def generate_for_category(category, hint, per_category, batch_size, api_key, bas
                     seen.add(t)
                     all_titles.append(t)
 
-        print(f"  [{category}] Batch {batch_idx+1}/{num_batches}: "
-              f"累计 {len(all_titles)}/{per_category}")
+        print(
+            f"  [{category}] Batch {batch_idx + 1}/{num_batches}: "
+            f"累计 {len(all_titles)}/{per_category}"
+        )
 
         # 如果数量不够，继续追加
         if len(all_titles) >= per_category:
@@ -225,7 +243,7 @@ def main():
     )
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-    print(f"[Generate] DeepSeek 商品标题生成")
+    print("[Generate] DeepSeek 商品标题生成")
     print(f"[Generate] 模型: {model}")
     print(f"[Generate] 类别数: {len(CATEGORIES)}")
     print(f"[Generate] 每类目标: {args.per_category} 条")
@@ -238,12 +256,11 @@ def main():
     category_stats = defaultdict(int)
 
     for cat_idx, category in enumerate(CATEGORIES):
-        print(f"\n[{cat_idx+1}/{len(CATEGORIES)}] 生成类别: {category}")
+        print(f"\n[{cat_idx + 1}/{len(CATEGORIES)}] 生成类别: {category}")
         hint = CATEGORY_HINTS[category]
 
         titles = generate_for_category(
-            category, hint, args.per_category, args.batch_size,
-            api_key, base_url, model
+            category, hint, args.per_category, args.batch_size, api_key, base_url, model
         )
 
         for title in titles:
@@ -262,14 +279,14 @@ def main():
         for text, label in all_data:
             writer.writerow([text, label])
 
-    print(f"\n{'='*60}")
-    print(f"生成完成！")
+    print(f"\n{'=' * 60}")
+    print("生成完成！")
     print(f"总样本数: {len(all_data)}")
     print(f"输出文件: {output_path}")
-    print(f"\n各类别分布:")
+    print("\n各类别分布:")
     for cat in CATEGORIES:
         print(f"  {cat}: {category_stats[cat]}")
-    print(f"\n示例标题 (前 20 条):")
+    print("\n示例标题 (前 20 条):")
     for text, label in all_data[:20]:
         print(f"  [{label}] {text}")
 
@@ -291,8 +308,10 @@ def main():
 
     print(f"\n训练集: {train_path} ({len(train_data)} 条)")
     print(f"验证集: {val_path} ({len(val_data)} 条)")
-    print(f"\n训练命令:")
-    print(f"  python scripts/train_classify_model.py --data data/processed/classify_train_v2_train.csv --epochs 10 --batch_size 32 --lr 2e-5")
+    print("\n训练命令:")
+    print(
+        "  python scripts/train_classify_model.py --data data/processed/classify_train_v2_train.csv --epochs 10 --batch_size 32 --lr 2e-5"
+    )
 
 
 if __name__ == "__main__":

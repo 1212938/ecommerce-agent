@@ -12,10 +12,11 @@ FastAPI 统一 API 层 — 电商智能体 HTTP 接口
 - GET  /api/trace         : 获取最近请求的追踪树
 - GET  /docs              : Swagger API 文档
 """
+
+import json
 import os
 import sys
 import time
-import json
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -32,13 +33,14 @@ if PROJECT_ROOT not in sys.path:
 
 from config.settings import settings
 
-
 # ------------------------------------------------------------------ #
 #  请求/响应模型
 # ------------------------------------------------------------------ #
 
+
 class ChatRequest(BaseModel):
     """对话请求"""
+
     message: str = Field(..., min_length=1, max_length=2000, description="用户消息")
     session_id: Optional[str] = Field("default", description="会话 ID（用于多轮记忆）")
     user_profile: Optional[dict] = Field(None, description="用户画像")
@@ -46,6 +48,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     """对话响应"""
+
     message: str
     intent: str
     agent_used: str
@@ -56,12 +59,14 @@ class ChatResponse(BaseModel):
 
 class ClassifyRequest(BaseModel):
     """分类请求"""
+
     title: str = Field(..., min_length=1, description="商品标题")
     top_k: int = Field(3, ge=1, le=10, description="返回 Top-K 结果")
 
 
 class SearchRequest(BaseModel):
     """搜索请求"""
+
     query: str = Field(..., min_length=1, description="搜索关键词")
     top_k: int = Field(10, ge=1, le=50, description="返回数量")
     category: Optional[str] = None
@@ -73,7 +78,7 @@ class SearchRequest(BaseModel):
 #  全局实例
 # ------------------------------------------------------------------ #
 
-orchestrator = None          # ReactOrchestrator (主)
+orchestrator = None  # ReactOrchestrator (主)
 fallback_orchestrator = None  # ECommerceOrchestrator (降级)
 neo4j_driver = None
 shared_embedder = None
@@ -83,6 +88,7 @@ shared_embedder = None
 #  生命周期管理
 # ------------------------------------------------------------------ #
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -90,11 +96,11 @@ async def lifespan(app: FastAPI):
     """
     global orchestrator, fallback_orchestrator, neo4j_driver, shared_embedder
 
-    from orchestration.registry import register_all_agents, create_llm, create_neo4j_driver
-    from orchestration.router import RouterAgent
-    from orchestration.react_orchestrator import ReactOrchestrator
     from orchestration.memory import MemoryManager
     from orchestration.observability import obs
+    from orchestration.react_orchestrator import ReactOrchestrator
+    from orchestration.registry import create_llm, create_neo4j_driver, register_all_agents
+    from orchestration.router import RouterAgent
 
     # 设置 HuggingFace 镜像
     if settings.hf_endpoint:
@@ -138,6 +144,7 @@ async def lifespan(app: FastAPI):
     # 获取共享 embedder (用于记忆系统)
     try:
         from sentence_transformers import SentenceTransformer
+
         shared_embedder = SentenceTransformer(settings.embedding_model)
         print(f"[Startup] 共享嵌入模型已加载: {settings.embedding_model}")
     except Exception as e:
@@ -162,11 +169,13 @@ async def lifespan(app: FastAPI):
     else:
         # 未启用 ReAct, 使用原编排器
         from orchestration.graph import ECommerceOrchestrator
+
         orchestrator = ECommerceOrchestrator(llm, agents, router)
         print("[Startup] 固定路由编排器已创建 (ReAct 未启用)")
 
     # 创建降级编排器
     from orchestration.graph import ECommerceOrchestrator
+
     fallback_orchestrator = ECommerceOrchestrator(llm, agents, router)
 
     print("=" * 60)
@@ -212,7 +221,11 @@ _API_ACCESS_KEY = os.getenv("API_ACCESS_KEY", "")
 @app.middleware("http")
 async def verify_api_key(request: Request, call):
     """API Key 认证中间件"""
-    if _API_ACCESS_KEY and request.url.path.startswith("/api/") and request.url.path != "/api/health":
+    if (
+        _API_ACCESS_KEY
+        and request.url.path.startswith("/api/")
+        and request.url.path != "/api/health"
+    ):
         api_key = request.headers.get("X-API-Key")
         if api_key != _API_ACCESS_KEY:
             return JSONResponse(401, {"detail": "Unauthorized: invalid or missing API key"})
@@ -248,12 +261,15 @@ async def rate_limit(request: Request, call):
 #  API 路由
 # ------------------------------------------------------------------ #
 
+
 @app.get("/api/health")
 async def health():
     """健康检查"""
     return {
         "status": "ok",
-        "agents_registered": len(orchestrator.agents) if hasattr(orchestrator, 'agents') and orchestrator.agents else 0,
+        "agents_registered": len(orchestrator.agents)
+        if hasattr(orchestrator, "agents") and orchestrator.agents
+        else 0,
         "react_enabled": settings.react_enabled,
         "streaming_enabled": settings.streaming_enabled,
     }
@@ -262,7 +278,7 @@ async def health():
 @app.get("/api/agents")
 async def list_agents():
     """查看已注册的 Agent 列表"""
-    agents_dict = getattr(orchestrator, 'agents', None)
+    agents_dict = getattr(orchestrator, "agents", None)
     if not agents_dict:
         raise HTTPException(503, "服务未就绪")
     return {
@@ -291,7 +307,7 @@ async def chat(request: ChatRequest):
     session_id = request.session_id or "default"
 
     # 调用编排器
-    if settings.react_enabled and hasattr(orchestrator, 'ainvoke'):
+    if settings.react_enabled and hasattr(orchestrator, "ainvoke"):
         response, state_info = await orchestrator.ainvoke(
             request.message,
             session_id=session_id,
@@ -344,7 +360,7 @@ async def chat_stream(request: ChatRequest):
             full_response = ""
 
             # 流式获取回答
-            if settings.react_enabled and hasattr(orchestrator, 'ainvoke_stream'):
+            if settings.react_enabled and hasattr(orchestrator, "ainvoke_stream"):
                 async for chunk in orchestrator.ainvoke_stream(
                     request.message,
                     session_id=session_id,
@@ -359,7 +375,7 @@ async def chat_stream(request: ChatRequest):
                 # 模拟流式
                 chunk_size = 5
                 for i in range(0, len(response), chunk_size):
-                    chunk = response[i:i + chunk_size]
+                    chunk = response[i : i + chunk_size]
                     yield f"data: {json.dumps({'type': 'token', 'content': chunk}, ensure_ascii=False)}\n\n"
 
             # 发送完成事件
@@ -382,7 +398,7 @@ async def chat_stream(request: ChatRequest):
 @app.post("/api/classify")
 async def classify_product(request: ClassifyRequest):
     """独立商品分类接口"""
-    agents_dict = getattr(orchestrator, 'agents', None)
+    agents_dict = getattr(orchestrator, "agents", None)
     if not agents_dict:
         raise HTTPException(503, "服务未就绪")
 
@@ -400,7 +416,7 @@ async def classify_product(request: ClassifyRequest):
 @app.post("/api/search")
 async def search_products(request: SearchRequest):
     """独立商品搜索接口"""
-    agents_dict = getattr(orchestrator, 'agents', None)
+    agents_dict = getattr(orchestrator, "agents", None)
     if not agents_dict:
         raise HTTPException(503, "服务未就绪")
 
@@ -426,8 +442,8 @@ async def get_stats():
     """
     系统统计 — Token 用量、缓存命中率、记忆状态、追踪信息
     """
-    from orchestration.observability import obs
     from orchestration.model_router import cost_optimizer
+    from orchestration.observability import obs
 
     stats = {
         "token_usage": obs.get_usage_summary(),
@@ -435,7 +451,7 @@ async def get_stats():
     }
 
     # 记忆系统统计
-    if hasattr(orchestrator, 'get_memory_stats'):
+    if hasattr(orchestrator, "get_memory_stats"):
         stats["memory"] = orchestrator.get_memory_stats()
 
     # 追踪信息
@@ -449,7 +465,8 @@ async def get_stats():
 @app.get("/api/trace")
 async def get_trace():
     """获取最近请求的追踪树"""
-    from orchestration.observability import obs, TraceContext
+    from orchestration.observability import TraceContext
+
     return {
         "spans": TraceContext.get_trace_tree(),
     }
@@ -458,7 +475,7 @@ async def get_trace():
 @app.delete("/api/session/{session_id}")
 async def clear_session(session_id: str):
     """清除会话记忆"""
-    if hasattr(orchestrator, 'clear_session'):
+    if hasattr(orchestrator, "clear_session"):
         orchestrator.clear_session(session_id)
         return {"status": "ok", "session_id": session_id}
     raise HTTPException(404, "会话管理不可用")

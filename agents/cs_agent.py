@@ -7,11 +7,13 @@
 学习参考: MultiAgent-Ecom 的 Policy Agent (FAISS RAG)
           E-Commerce Shopping Assistant 的 RAG 实现
 """
+
 import os
-from typing import Optional, List
+from typing import List
+
+from cachetools import TTLCache
 
 from agents.tools.base import BaseAgentTool
-from cachetools import TTLCache
 
 
 class _SharedEmbedderAdapter:
@@ -47,11 +49,11 @@ class CustomerServiceAgent(BaseAgentTool):
     """
 
     name: str = "cs_agent"
-    description: str = (
-        "智能客服：回答退换货政策、售后规则、常见问题等客服相关内容"
-    )
+    description: str = "智能客服：回答退换货政策、售后规则、常见问题等客服相关内容"
 
-    def __init__(self, faiss_index_path: str, embedding_model_name: str, llm=None, shared_embedder=None):
+    def __init__(
+        self, faiss_index_path: str, embedding_model_name: str, llm=None, shared_embedder=None
+    ):
         super().__init__()
         self.faiss_index_path = faiss_index_path
         self.embedding_model_name = embedding_model_name
@@ -69,7 +71,7 @@ class CustomerServiceAgent(BaseAgentTool):
         """启动时预加载嵌入模型和 FAISS 索引，避免首次请求超时"""
         try:
             self._ensure_loaded()
-            print(f"[CSAgent] 预加载完成")
+            print("[CSAgent] 预加载完成")
         except Exception as e:
             print(f"[CSAgent] 预加载失败（不影响启动，首次调用时重试）: {e}")
 
@@ -87,6 +89,7 @@ class CustomerServiceAgent(BaseAgentTool):
             self._embedding_model = _SharedEmbedderAdapter(self._shared_embedder)
         else:
             from langchain_community.embeddings import HuggingFaceEmbeddings
+
             self._embedding_model = HuggingFaceEmbeddings(
                 model_name=self.embedding_model_name,
                 model_kwargs={"device": "cpu"},
@@ -105,7 +108,7 @@ class CustomerServiceAgent(BaseAgentTool):
                 self._embedding_model,
                 allow_dangerous_deserialization=True,
             )
-            print(f"[CSAgent] FAQ 知识库已加载")
+            print("[CSAgent] FAQ 知识库已加载")
         else:
             print(f"[CSAgent] FAQ 索引未找到: {index_dir}")
             print("[CSAgent] 请先运行 scripts/build_faq_index.py")
@@ -157,9 +160,7 @@ class CustomerServiceAgent(BaseAgentTool):
             return self._llm_direct_answer(question)
 
         # Step 2: 构建 context
-        context = "\n\n".join(
-            f"[FAQ {i+1}] {d.page_content}" for i, d in enumerate(docs)
-        )
+        context = "\n\n".join(f"[FAQ {i + 1}] {d.page_content}" for i, d in enumerate(docs))
 
         # Step 3: LLM 生成回答
         if self.llm:
@@ -232,6 +233,5 @@ FAQ 知识库:
                 pass
 
         return (
-            "抱歉，我暂时无法回答这个问题。"
-            "建议您联系在线客服 (9:00-21:00) 或拨打客服电话获取帮助。"
+            "抱歉，我暂时无法回答这个问题。建议您联系在线客服 (9:00-21:00) 或拨打客服电话获取帮助。"
         )

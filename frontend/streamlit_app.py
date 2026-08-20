@@ -9,12 +9,12 @@ Streamlit 前端 — 电商智能助手聊天 UI
 - 分类/搜索独立功能面板
 - 系统统计面板（Token 用量、缓存命中率）
 """
-import sys
+
+import json
 import os
 import uuid
-import json
-import requests
 
+import requests
 import streamlit as st
 
 # API 地址
@@ -48,6 +48,7 @@ if "streaming_enabled" not in st.session_state:
 # ------------------------------------------------------------------ #
 #  流式输出支持
 # ------------------------------------------------------------------ #
+
 
 def stream_chat(message: str, session_id: str):
     """
@@ -105,7 +106,11 @@ def non_stream_chat(message: str, session_id: str) -> dict:
         if response.status_code == 200:
             return response.json()
         else:
-            return {"message": f"❌ 请求失败: {response.text}", "intent": "error", "agent_used": "none"}
+            return {
+                "message": f"❌ 请求失败: {response.text}",
+                "intent": "error",
+                "agent_used": "none",
+            }
     except Exception as e:
         return {"message": f"❌ 请求异常: {e}", "intent": "error", "agent_used": "none"}
 
@@ -150,7 +155,7 @@ with st.sidebar:
     st.session_state.streaming_enabled = st.checkbox(
         "⚡ 流式输出",
         value=st.session_state.streaming_enabled,
-        help="启用后回答将逐字显示 (打字机效果)"
+        help="启用后回答将逐字显示 (打字机效果)",
     )
 
     # 系统统计
@@ -302,9 +307,7 @@ if prompt := st.chat_input("输入你的问题...（例如：搜索蓝牙耳机 
                 pass  # spinner 只显示一瞬间
 
             # 使用 st.write_stream 实现打字机效果
-            full_response = st.write_stream(
-                stream_chat(prompt, st.session_state.session_id)
-            )
+            full_response = st.write_stream(stream_chat(prompt, st.session_state.session_id))
 
             # 获取元信息 (非流式接口获取)
             meta_info = ""
@@ -317,11 +320,13 @@ if prompt := st.chat_input("输入你的问题...（例如：搜索蓝牙耳机 
             agent_info = "ReAct 模式 | 流式输出"
             st.caption(f"🤖 {agent_info}")
 
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": full_response,
-                "agent": agent_info,
-            })
+            st.session_state.messages.append(
+                {
+                    "role": "assistant",
+                    "content": full_response,
+                    "agent": agent_info,
+                }
+            )
         else:
             # 非流式输出 (降级)
             with st.spinner("🤔 思考中..."):
@@ -341,8 +346,10 @@ if prompt := st.chat_input("输入你的问题...（例如：搜索蓝牙耳机 
 
             st.caption(f"🤖 {agent_info}")
 
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": data["message"],
-                "agent": agent_info,
-            })
+            st.session_state.messages.append(
+                {
+                    "role": "assistant",
+                    "content": data["message"],
+                    "agent": agent_info,
+                }
+            )

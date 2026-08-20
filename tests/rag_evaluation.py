@@ -27,39 +27,43 @@ RAG 评估体系 — 检索质量 + 生成质量全维度评估
     evaluator = RAGEvaluator(llm, search_agent, cs_agent)
     results = evaluator.evaluate(test_cases)
 """
-import sys
-import os
+
 import json
-import time
 import math
-from typing import List, Dict, Optional, Any
-from dataclasses import dataclass, field
+import os
+import sys
+import time
+from dataclasses import dataclass
+from typing import List
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from config.settings import settings
 from langchain_openai import ChatOpenAI
 
+from config.settings import settings
 
 # ------------------------------------------------------------------ #
 #  评估数据结构
 # ------------------------------------------------------------------ #
 
+
 @dataclass
 class RAGTestCase:
     """RAG 评估测试用例"""
-    query: str                        # 用户查询
-    relevant_doc_ids: List[str]       # 相关文档 ID (ground truth)
+
+    query: str  # 用户查询
+    relevant_doc_ids: List[str]  # 相关文档 ID (ground truth)
     expected_answer_keywords: List[str]  # 期望答案中包含的关键词
-    category: str = "general"         # 分类 (search/cs/kg_qa)
-    description: str = ""             # 用例描述
+    category: str = "general"  # 分类 (search/cs/kg_qa)
+    description: str = ""  # 用例描述
 
 
 @dataclass
 class RetrievalResult:
     """单条检索结果"""
+
     doc_id: str
     score: float
     content: str = ""
@@ -68,6 +72,7 @@ class RetrievalResult:
 @dataclass
 class EvaluationMetrics:
     """评估指标"""
+
     # 检索指标
     recall_at_1: float = 0.0
     recall_at_3: float = 0.0
@@ -91,6 +96,7 @@ class EvaluationMetrics:
 # ------------------------------------------------------------------ #
 #  检索指标计算
 # ------------------------------------------------------------------ #
+
 
 class RetrievalMetrics:
     """检索质量指标计算器"""
@@ -143,17 +149,12 @@ class RetrievalMetrics:
         IDCG = DCG of ideal ranking
         NDCG = DCG / IDCG
         """
+
         def dcg(rels: List[int]) -> float:
-            return sum(
-                (2 ** rel - 1) / math.log2(i + 2)
-                for i, rel in enumerate(rels)
-            )
+            return sum((2**rel - 1) / math.log2(i + 2) for i, rel in enumerate(rels))
 
         # 实际相关性
-        actual_rels = [
-            1 if doc_id in relevant_ids else 0
-            for doc_id in retrieved_ids[:k]
-        ]
+        actual_rels = [1 if doc_id in relevant_ids else 0 for doc_id in retrieved_ids[:k]]
 
         # 理想相关性 (所有相关文档排在前面)
         ideal_rels = [1] * min(len(relevant_ids), k)
@@ -193,6 +194,7 @@ class RetrievalMetrics:
 # ------------------------------------------------------------------ #
 #  生成质量评估 (LLM as Judge)
 # ------------------------------------------------------------------ #
+
 
 class GenerationMetrics:
     """
@@ -274,6 +276,7 @@ class GenerationMetrics:
 #  RAG 评估器
 # ------------------------------------------------------------------ #
 
+
 class RAGEvaluator:
     """
     RAG 系统全维度评估器
@@ -337,9 +340,7 @@ class RAGEvaluator:
 
         # 动态构建 ground truth (当 relevant_ids 为 ["auto"] 时)
         if relevant_ids == ["auto"]:
-            relevant_ids = self._build_ground_truth(
-                merged, vec_results, relevant_keywords or []
-            )
+            relevant_ids = self._build_ground_truth(merged, vec_results, relevant_keywords or [])
 
         # 计算检索指标
         retrieval_metrics = RetrievalMetrics.compute_all(retrieved_ids, relevant_ids)
@@ -463,8 +464,10 @@ class RAGEvaluator:
             result["description"] = case.get("description", "")
             results.append(result)
 
-            print(f"  [{eval_type}] {case['query'][:30]}... → "
-                  f"latency={result.get('latency_ms', 0):.0f}ms")
+            print(
+                f"  [{eval_type}] {case['query'][:30]}... → "
+                f"latency={result.get('latency_ms', 0):.0f}ms"
+            )
 
         # 汇总
         summary = self._compute_summary(results)
@@ -480,13 +483,22 @@ class RAGEvaluator:
             return {}
 
         # 检索指标汇总
-        search_results = [r for r in results if r.get("type") == "search" and "retrieval_metrics" in r]
-        cs_results = [r for r in results if r.get("type") == "cs"]
+        search_results = [
+            r for r in results if r.get("type") == "search" and "retrieval_metrics" in r
+        ]
 
         summary = {}
 
         if search_results:
-            ret_metrics = ["recall@1", "recall@3", "recall@5", "precision@5", "mrr", "ndcg@5", "hit_rate@5"]
+            ret_metrics = [
+                "recall@1",
+                "recall@3",
+                "recall@5",
+                "precision@5",
+                "mrr",
+                "ndcg@5",
+                "hit_rate@5",
+            ]
             summary["retrieval"] = {}
             for metric in ret_metrics:
                 values = [r["retrieval_metrics"].get(metric, 0) for r in search_results]
@@ -627,6 +639,7 @@ CS_TEST_CASES = [
 #  主入口
 # ------------------------------------------------------------------ #
 
+
 def main():
     """运行 RAG 评估"""
     print("=" * 60)
@@ -644,7 +657,7 @@ def main():
     )
 
     # 初始化 Agent
-    from orchestration.registry import register_all_agents, create_neo4j_driver
+    from orchestration.registry import create_neo4j_driver, register_all_agents
 
     neo4j_driver = None
     try:
@@ -663,7 +676,9 @@ def main():
 
     # 运行评估
     all_cases = SEARCH_TEST_CASES + CS_TEST_CASES
-    print(f"\n共 {len(all_cases)} 个测试用例 (搜索 {len(SEARCH_TEST_CASES)} + 客服 {len(CS_TEST_CASES)})\n")
+    print(
+        f"\n共 {len(all_cases)} 个测试用例 (搜索 {len(SEARCH_TEST_CASES)} + 客服 {len(CS_TEST_CASES)})\n"
+    )
 
     result = evaluator.run_full_evaluation(all_cases)
 

@@ -6,22 +6,23 @@
 学习参考: MultiAgent-Ecom 的 Router Agent
           Price Pilot 的 ChatAgent (任务委托)
 """
+
 import re
 from typing import Optional
-from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
 
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
 
 # 意图类型定义
 IntentType = [
-    "kg_qa",             # 知识图谱问答（品牌/属性/关系）
-    "search",            # 商品搜索
-    "classify",          # 商品分类
-    "recommend",         # 商品推荐
-    "order",             # 订单查询
+    "kg_qa",  # 知识图谱问答（品牌/属性/关系）
+    "search",  # 商品搜索
+    "classify",  # 商品分类
+    "recommend",  # 商品推荐
+    "order",  # 订单查询
     "customer_service",  # 售后服务/FAQ
-    "analytics",         # 数据分析
-    "chitchat",          # 闲聊/问候
+    "analytics",  # 数据分析
+    "chitchat",  # 闲聊/问候
 ]
 
 
@@ -60,13 +61,44 @@ class RouterAgent:
     # 注意：kg_qa 的 "属于什么" / "什么分类" 必须在 classify 的 "属于" / "分类" 之前匹配
     KEYWORD_RULES = {
         "order": ["订单", "物流", "快递", "发货", "签收", "运单", "order", "tracking"],
-        "customer_service": ["退换货", "退货", "退款", "售后", "投诉", "运费", "发票", "价保", "客服"],
+        "customer_service": [
+            "退换货",
+            "退货",
+            "退款",
+            "售后",
+            "投诉",
+            "运费",
+            "发票",
+            "价保",
+            "客服",
+        ],
         "analytics": ["销量", "排行", "趋势", "分析", "数据", "统计", "占比", "top"],
         # kg_qa 放在 classify 之前：问句式 "属于什么分类" 优先路由到知识图谱
-        "kg_qa": ["品牌", "属性", "什么关系", "属于什么", "有哪些产品", "什么牌子", "什么分类", "什么类别", "哪个分类", "哪个类别"],
+        "kg_qa": [
+            "品牌",
+            "属性",
+            "什么关系",
+            "属于什么",
+            "有哪些产品",
+            "什么牌子",
+            "什么分类",
+            "什么类别",
+            "哪个分类",
+            "哪个类别",
+        ],
         # classify 只处理直接的分类请求（如 "分类这个商品"），不处理问句
         "classify": ["分类", "类别", "什么类"],
-        "recommend": ["推荐", "建议", "买什么", "选什么", "有什么好", "预算", "想买", "适合", "求推荐"],
+        "recommend": [
+            "推荐",
+            "建议",
+            "买什么",
+            "选什么",
+            "有什么好",
+            "预算",
+            "想买",
+            "适合",
+            "求推荐",
+        ],
         "search": ["搜索", "查找", "找", "有没有", "卖", "多少钱", "价格"],
         "chitchat": ["你好", "您好", "早上好", "下午好", "晚上好", "hi", "hello", "谢谢", "再见"],
     }
@@ -74,8 +106,11 @@ class RouterAgent:
     def __init__(self, llm: ChatOpenAI):
         self.llm = llm
 
-        self.router_prompt = ChatPromptTemplate.from_messages([
-            ("system", """你是一个电商智能客服的路由器。
+        self.router_prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    """你是一个电商智能客服的路由器。
 根据用户输入，判断意图并路由到对应模块：
 
 - kg_qa: 关于品牌、商品属性、分类关系的问题
@@ -102,9 +137,11 @@ class RouterAgent:
 - chitchat: 问候/闲聊/其他
   例: "你好" "今天天气不错" "谢谢"
 
-只回复意图类型关键词(从上述列表中选择)，不要加其他任何文字。"""),
-            ("user", "{input}")
-        ])
+只回复意图类型关键词(从上述列表中选择)，不要加其他任何文字。""",
+                ),
+                ("user", "{input}"),
+            ]
+        )
 
     def route(self, user_input: str, history: list = None) -> dict:
         """
@@ -151,8 +188,8 @@ class RouterAgent:
             "order",
             "customer_service",
             "analytics",
-            "kg_qa",        # kg_qa 优先于 classify：问句式分类查询走知识图谱
-            "classify",     # classify 仅处理直接分类请求
+            "kg_qa",  # kg_qa 优先于 classify：问句式分类查询走知识图谱
+            "classify",  # classify 仅处理直接分类请求
             "recommend",
             "search",
             "chitchat",

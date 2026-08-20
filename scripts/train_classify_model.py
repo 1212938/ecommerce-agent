@@ -17,12 +17,13 @@ BERT 商品分类模型训练脚本
     models/product_classification/checkpoint/best/  — 模型权重
     models/product_classification/checkpoint/best/labels.txt  — 标签文件
 """
-import sys
-import os
+
+import argparse
 import csv
 import json
+import os
 import random
-import argparse
+import sys
 from collections import Counter
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -32,15 +33,23 @@ if PROJECT_ROOT not in sys.path:
 
 def parse_args():
     parser = argparse.ArgumentParser(description="BERT 商品分类模型训练")
-    parser.add_argument("--data", type=str,
-                        default=os.path.join(PROJECT_ROOT, "data", "processed", "classify_train.csv"),
-                        help="训练数据 CSV 路径")
-    parser.add_argument("--output_dir", type=str,
-                        default=os.path.join(PROJECT_ROOT, "models", "product_classification", "checkpoint", "best"),
-                        help="模型输出目录")
-    parser.add_argument("--model_name", type=str,
-                        default="bert-base-chinese",
-                        help="预训练模型名称")
+    parser.add_argument(
+        "--data",
+        type=str,
+        default=os.path.join(PROJECT_ROOT, "data", "processed", "classify_train.csv"),
+        help="训练数据 CSV 路径",
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default=os.path.join(
+            PROJECT_ROOT, "models", "product_classification", "checkpoint", "best"
+        ),
+        help="模型输出目录",
+    )
+    parser.add_argument(
+        "--model_name", type=str, default="bert-base-chinese", help="预训练模型名称"
+    )
     parser.add_argument("--epochs", type=int, default=5, help="训练轮数")
     parser.add_argument("--batch_size", type=int, default=16, help="批大小")
     parser.add_argument("--lr", type=float, default=2e-5, help="学习率")
@@ -113,18 +122,18 @@ def train():
 
     # 2. 加载 tokenizer 和模型
     print(f"\n[Train] 加载预训练模型: {args.model_name}")
-    from transformers import (
-        AutoTokenizer,
-        AutoModelForSequenceClassification,
-        TrainingArguments,
-        Trainer,
-    )
-    import torch
     import numpy as np
+    import torch
+    from transformers import (
+        AutoModelForSequenceClassification,
+        AutoTokenizer,
+        TrainingArguments,
+    )
 
     # EarlyStoppingCallback 在 transformers>=4.0 可用，低版本降级处理
     try:
         from transformers import EarlyStoppingCallback
+
         _has_early_stopping = True
     except ImportError:
         _has_early_stopping = False
@@ -148,7 +157,7 @@ def train():
     class TextDataset(Dataset):
         def __init__(self, texts, labels, tokenizer, max_length):
             self.texts = texts
-            self.labels = [label2id[l] for l in labels]
+            self.labels = [label2id[label] for label in labels]
             self.tokenizer = tokenizer
             self.max_length = max_length
 
@@ -173,10 +182,9 @@ def train():
     val_dataset = TextDataset(val_texts, val_labels, tokenizer, args.max_length)
 
     # 4. 计算类别权重 (处理类别不平衡)
-    import numpy as np
     from collections import Counter as CCounter
 
-    train_label_ids = [label2id[l] for l in train_labels]
+    train_label_ids = [label2id[label] for label in train_labels]
     label_counts = CCounter(train_label_ids)
     num_samples = len(train_label_ids)
     num_classes = len(label_list)
@@ -193,7 +201,9 @@ def train():
 
     print("\n[Train] 类别权重 (处理不平衡):")
     for cls_id in range(num_classes):
-        print(f"  {id2label[cls_id]}: count={label_counts.get(cls_id, 0)}, weight={class_weights[cls_id]:.3f}")
+        print(
+            f"  {id2label[cls_id]}: count={label_counts.get(cls_id, 0)}, weight={class_weights[cls_id]:.3f}"
+        )
 
     class_weights_tensor = torch.tensor(class_weights, dtype=torch.float32).to(device)
 
@@ -248,7 +258,7 @@ def train():
 
     # 6. 训练 (带早停 + 加权交叉熵处理类别不平衡)
     print(f"\n[Train] 开始训练 (epochs={args.epochs}, batch_size={args.batch_size}, lr={args.lr})")
-    print(f"[Train] 使用加权交叉熵损失 (class weights normalized, mean=1.0)")
+    print("[Train] 使用加权交叉熵损失 (class weights normalized, mean=1.0)")
 
     # 自定义 Trainer: 使用加权 CrossEntropyLoss 处理类别不平衡
     from transformers import Trainer as BaseTrainer

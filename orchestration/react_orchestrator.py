@@ -18,23 +18,23 @@ ReAct 工具循环编排器 — LLM 自主决策的工具调用循环
 
 使用 LangChain 的 create_tool_calling_agent + AgentExecutor 实现。
 """
-import json
+
 import asyncio
 import time
-from typing import Optional, Tuple, AsyncGenerator, List, Dict, Any
 from collections import defaultdict
+from typing import AsyncGenerator, List, Optional, Tuple
 
-from langchain_openai import ChatOpenAI
-from langchain_core.tools import Tool, StructuredTool
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from langchain_core.callbacks import BaseCallbackHandler
 from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.tools import Tool
+from langchain_openai import ChatOpenAI
 
 from config.settings import settings
-from orchestration.observability import obs
 from orchestration.memory import MemoryManager
 from orchestration.model_router import cost_optimizer
+from orchestration.observability import obs
 from orchestration.router import RouterAgent
 
 
@@ -139,96 +139,114 @@ class ReactOrchestrator:
         # 1. 商品搜索
         if "search_agent" in self.agents:
             agent = self.agents["search_agent"]
-            tools.append(Tool(
-                name="search_products",
-                description=(
-                    "搜索具体商品。仅当用户给出了明确的商品关键词/名称时使用，"
-                    "如 '蓝牙耳机'、'iPhone 15'、'跑步鞋'、'纸尿裤'。输入: 商品关键词。"
-                    "注意: 如果用户表达的是推荐诉求（'推荐…'、'求推荐…'、'预算X'、'适合…'、'想买…'），"
-                    "必须使用 recommend_products 工具，而不是本工具。"
-                ),
-                func=lambda query: agent.run(query=query),
-            ))
+            tools.append(
+                Tool(
+                    name="search_products",
+                    description=(
+                        "搜索具体商品。仅当用户给出了明确的商品关键词/名称时使用，"
+                        "如 '蓝牙耳机'、'iPhone 15'、'跑步鞋'、'纸尿裤'。输入: 商品关键词。"
+                        "注意: 如果用户表达的是推荐诉求（'推荐…'、'求推荐…'、'预算X'、'适合…'、'想买…'），"
+                        "必须使用 recommend_products 工具，而不是本工具。"
+                    ),
+                    func=lambda query: agent.run(query=query),
+                )
+            )
 
         # 2. 知识图谱问答
         if "kg_qa_agent" in self.agents:
             agent = self.agents["kg_qa_agent"]
-            tools.append(Tool(
-                name="kg_qa",
-                description="基于知识图谱回答商品相关问题，如品牌关系、属性查询、分类导航。输入: 自然语言问题。例如: 'Apple有哪些产品?' 或 '纸尿裤属于什么分类?'",
-                func=lambda query: agent.run(query=query),
-            ))
+            tools.append(
+                Tool(
+                    name="kg_qa",
+                    description="基于知识图谱回答商品相关问题，如品牌关系、属性查询、分类导航。输入: 自然语言问题。例如: 'Apple有哪些产品?' 或 '纸尿裤属于什么分类?'",
+                    func=lambda query: agent.run(query=query),
+                )
+            )
 
         # 3. 商品分类
         if "classify_agent" in self.agents:
             agent = self.agents["classify_agent"]
-            tools.append(Tool(
-                name="classify_product",
-                description="对商品标题进行自动分类。输入: 商品标题文本。例如: '小米 Redmi Note 12 5G 手机'",
-                func=lambda query: agent.run(query=query),
-            ))
+            tools.append(
+                Tool(
+                    name="classify_product",
+                    description="对商品标题进行自动分类。输入: 商品标题文本。例如: '小米 Redmi Note 12 5G 手机'",
+                    func=lambda query: agent.run(query=query),
+                )
+            )
 
         # 4. 商品推荐
         if "recommend_agent" in self.agents:
             agent = self.agents["recommend_agent"]
-            tools.append(Tool(
-                name="recommend_products",
-                description=(
-                    "个性化商品推荐。当用户表达推荐诉求时必须调用此工具："
-                    "'推荐…'、'求推荐…'、'预算X'、'适合…'、'想买…'、'有什么…推荐'。"
-                    "输入: 用户的完整需求描述（含预算、用途、品牌偏好等）。"
-                    "示例: '预算8000，主要拍视频和拍照，内存512G' 或 '推荐一些适合户外的装备'。"
-                    "严禁自行编造推荐，必须通过此工具获取真实商品数据。"
-                ),
-                func=lambda query: agent.run(query=query),
-            ))
+            tools.append(
+                Tool(
+                    name="recommend_products",
+                    description=(
+                        "个性化商品推荐。当用户表达推荐诉求时必须调用此工具："
+                        "'推荐…'、'求推荐…'、'预算X'、'适合…'、'想买…'、'有什么…推荐'。"
+                        "输入: 用户的完整需求描述（含预算、用途、品牌偏好等）。"
+                        "示例: '预算8000，主要拍视频和拍照，内存512G' 或 '推荐一些适合户外的装备'。"
+                        "严禁自行编造推荐，必须通过此工具获取真实商品数据。"
+                    ),
+                    func=lambda query: agent.run(query=query),
+                )
+            )
 
         # 5. 订单查询
         if "order_agent" in self.agents:
             agent = self.agents["order_agent"]
-            tools.append(Tool(
-                name="query_order",
-                description="查询订单状态和物流信息。输入: 订单号或包含订单号的查询。例如: '查询订单 ORD123456' 或 '123456789'",
-                func=lambda query: agent.run(query=query),
-            ))
+            tools.append(
+                Tool(
+                    name="query_order",
+                    description="查询订单状态和物流信息。输入: 订单号或包含订单号的查询。例如: '查询订单 ORD123456' 或 '123456789'",
+                    func=lambda query: agent.run(query=query),
+                )
+            )
 
         # 6. 客服
         if "cs_agent" in self.agents:
             agent = self.agents["cs_agent"]
-            tools.append(Tool(
-                name="customer_service",
-                description="回答售后政策、退换货规则、常见问题。输入: 用户问题。例如: '怎么退货?' 或 '运费谁出?'",
-                func=lambda query: agent.run(query=query),
-            ))
+            tools.append(
+                Tool(
+                    name="customer_service",
+                    description="回答售后政策、退换货规则、常见问题。输入: 用户问题。例如: '怎么退货?' 或 '运费谁出?'",
+                    func=lambda query: agent.run(query=query),
+                )
+            )
 
         # 7. 数据分析
         if "analytics_agent" in self.agents:
             agent = self.agents["analytics_agent"]
-            tools.append(Tool(
-                name="data_analysis",
-                description="查询销售趋势、商品排行、品类占比等数据分析。输入: 分析需求。例如: '最近什么品类卖得最好?' 或 '销售趋势'",
-                func=lambda query: agent.run(query=query),
-            ))
+            tools.append(
+                Tool(
+                    name="data_analysis",
+                    description="查询销售趋势、商品排行、品类占比等数据分析。输入: 分析需求。例如: '最近什么品类卖得最好?' 或 '销售趋势'",
+                    func=lambda query: agent.run(query=query),
+                )
+            )
 
         # 8. 闲聊
         if "chitchat_agent" in self.agents:
             agent = self.agents["chitchat_agent"]
-            tools.append(Tool(
-                name="chitchat",
-                description="仅用于问候、感谢、告别等纯闲聊场景（如'你好''谢谢''再见'）。不得用于任何与商品、推荐、搜索、订单、售后相关的问题。如果用户问题涉及商品，必须使用 search_products 或 recommend_products。",
-                func=lambda query: agent.run(query=query),
-            ))
+            tools.append(
+                Tool(
+                    name="chitchat",
+                    description="仅用于问候、感谢、告别等纯闲聊场景（如'你好''谢谢''再见'）。不得用于任何与商品、推荐、搜索、订单、售后相关的问题。如果用户问题涉及商品，必须使用 search_products 或 recommend_products。",
+                    func=lambda query: agent.run(query=query),
+                )
+            )
 
         return tools
 
     def _build_agent_executor(self) -> AgentExecutor:
         """构建 ReAct Agent Executor（含防死循环 + 超时控制）"""
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", self.SYSTEM_PROMPT),
-            MessagesPlaceholder(variable_name="chat_history", optional=True),
-            ("human", "{input}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
-        ])
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", self.SYSTEM_PROMPT),
+                MessagesPlaceholder(variable_name="chat_history", optional=True),
+                ("human", "{input}"),
+                MessagesPlaceholder(variable_name="agent_scratchpad"),
+            ]
+        )
 
         agent = create_tool_calling_agent(self.llm, self._tools, prompt)
 
@@ -248,9 +266,8 @@ class ReactOrchestrator:
         """获取降级编排器 (原固定路由)"""
         if self._fallback_orchestrator is None:
             from orchestration.graph import ECommerceOrchestrator
-            self._fallback_orchestrator = ECommerceOrchestrator(
-                self.llm, self.agents, self.router
-            )
+
+            self._fallback_orchestrator = ECommerceOrchestrator(self.llm, self.agents, self.router)
         return self._fallback_orchestrator
 
     # ------------------------------------------------------------------ #
@@ -327,10 +344,12 @@ class ReactOrchestrator:
             # 4. 执行 ReAct 循环 (max_iterations + max_execution_time + repeat_detection 三重保护)
             start_time = time.time()
             try:
-                result = self._agent_executor.invoke({
-                    "input": user_input,
-                    "chat_history": chat_history,
-                })
+                result = self._agent_executor.invoke(
+                    {
+                        "input": user_input,
+                        "chat_history": chat_history,
+                    }
+                )
             except ValueError as e:
                 # 重复调用检测触发的中断
                 obs.logger.warning("ReAct 重复调用中断，降级处理", error=str(e))
@@ -356,9 +375,9 @@ class ReactOrchestrator:
             intermediate_steps = result.get("intermediate_steps", [])
 
             # 提取调用的工具链
-            tools_called = [
-                step[0].tool for step in intermediate_steps
-            ] if intermediate_steps else []
+            tools_called = (
+                [step[0].tool for step in intermediate_steps] if intermediate_steps else []
+            )
 
             # 关键兜底：关键词路由已命中业务意图（recommend/search/order/cs/kg_qa...），
             # 但 LLM 未调用任何工具直接凭知识回答（幻觉）。
@@ -385,7 +404,9 @@ class ReactOrchestrator:
 
             # 5. 记录到记忆
             self.memory.add_message(session_id, "user", user_input, intent=intent)
-            self.memory.add_message(session_id, "assistant", response, intent=intent, tools=tools_called)
+            self.memory.add_message(
+                session_id, "assistant", response, intent=intent, tools=tools_called
+            )
 
             # 6. 写入缓存 (非闲聊才缓存)
             if intent not in ("chitchat",):
@@ -502,9 +523,7 @@ class ReactOrchestrator:
                 if token:
                     yield token
 
-            # Step 3: 记录到记忆 (异步, 不阻塞流式)
-            full_response = tool_results.get("response_prefix", "")
-            # 流式回答的记忆更新在流式结束后由调用方触发
+            # Step 3: 记忆更新由调用方在流式结束后触发
 
         except Exception as e:
             obs.logger.error("流式输出失败", error=str(e))
@@ -548,8 +567,6 @@ class ReactOrchestrator:
             return tool_results["response_prefix"]
 
         # 正常情况下, 基于 ReAct 的 intermediate steps 构建回答 prompt
-        state = tool_results.get("state", {})
-        tools_called = state.get("tools_called", [])
         response = tool_results.get("response_prefix", "")
 
         return response

@@ -13,15 +13,18 @@ LangGraph 降级编排器 — 状态机驱动的 ReAct Agent 工具调度 (ReAct
     - JoyAgent-JDGenie 的 DAG 执行引擎
     - llm-based-recommender 的 LangGraph workflow
 """
+
 import asyncio
 import operator
-from typing import TypedDict, Annotated, Sequence, Optional, Tuple
-from langgraph.graph import StateGraph, END
+from typing import Annotated, Optional, Sequence, Tuple, TypedDict
+
 from langchain_openai import ChatOpenAI
+from langgraph.graph import END, StateGraph
 
 
 class AgentState(TypedDict):
     """Agent 状态定义"""
+
     messages: Annotated[Sequence[str], operator.add]
     intent: str
     agent: str
@@ -80,7 +83,7 @@ class ECommerceOrchestrator:
                 "execute": "executor",
                 "clarify": "clarify",
                 "fallback": "fallback",
-            }
+            },
         )
         workflow.add_edge("executor", "finalize")
         workflow.add_edge("clarify", "finalize")
@@ -231,15 +234,17 @@ class ECommerceOrchestrator:
         Returns:
             (回复字符串, 状态信息 dict)
         """
-        result = self.graph.invoke({
-            "messages": [user_input],
-            "input": user_input,
-            "intent": "",
-            "agent": "",
-            "current_response": "",
-            "needs_clarification": False,
-            "tool_results": [],
-        })
+        result = self.graph.invoke(
+            {
+                "messages": [user_input],
+                "input": user_input,
+                "intent": "",
+                "agent": "",
+                "current_response": "",
+                "needs_clarification": False,
+                "tool_results": [],
+            }
+        )
         return result["current_response"], {
             "intent": result.get("intent", "unknown"),
             "agent": result.get("agent", "unknown"),

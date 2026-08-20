@@ -17,28 +17,30 @@
    - L2: 磁盘持久化缓存 — 跨重启有效
    - L3: 语义缓存 (Embedding 余弦相似度) — 对语义相同/相近的查询命中缓存
 """
-import os
-import json
-import hashlib
-import time
-import numpy as np
-from typing import Optional, Any, Dict, List, Callable, Tuple
-from dataclasses import dataclass
 
+import hashlib
+import json
+import os
+import time
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, Optional, Tuple
+
+import numpy as np
 from cachetools import TTLCache
 from langchain_openai import ChatOpenAI
 
 from config.settings import settings
 from orchestration.observability import obs
 
-
 # ------------------------------------------------------------------ #
 #  模型分级路由
 # ------------------------------------------------------------------ #
 
+
 @dataclass
 class ModelConfig:
     """模型配置"""
+
     model_name: str
     temperature: float
     max_tokens: int
@@ -62,14 +64,14 @@ class ModelTierRouter:
 
     # 意图 → 模型层级映射
     INTENT_TIER_MAP = {
-        "chitchat": 1,           # 闲聊 → lite
-        "customer_service": 1,    # 简单 FAQ → lite
-        "order": 1,              # 订单查询 (DB 查询为主) → lite
-        "classify": 1,           # 分类 (BERT 模型, 不用 LLM) → lite (仅降级时用)
-        "search": 2,             # 搜索 → standard
-        "kg_qa": 2,             # 知识图谱 QA → standard
-        "analytics": 3,         # 数据分析 → heavy
-        "recommend": 3,         # 推荐 (LLM 重排) → heavy
+        "chitchat": 1,  # 闲聊 → lite
+        "customer_service": 1,  # 简单 FAQ → lite
+        "order": 1,  # 订单查询 (DB 查询为主) → lite
+        "classify": 1,  # 分类 (BERT 模型, 不用 LLM) → lite (仅降级时用)
+        "search": 2,  # 搜索 → standard
+        "kg_qa": 2,  # 知识图谱 QA → standard
+        "analytics": 3,  # 数据分析 → heavy
+        "recommend": 3,  # 推荐 (LLM 重排) → heavy
     }
 
     # 各层级模型信息（用于日志和成本估算）
@@ -92,7 +94,7 @@ class ModelTierRouter:
             base_url=settings.deepseek_base_url,
             temperature=settings.lite_temperature,
             max_tokens=settings.lite_max_tokens,
-            timeout=10,            # 极短超时, 保证低延迟
+            timeout=10,  # 极短超时, 保证低延迟
             max_retries=2,
         )
 
@@ -116,7 +118,7 @@ class ModelTierRouter:
             base_url=settings.deepseek_base_url,
             temperature=settings.heavy_temperature,
             max_tokens=settings.heavy_max_tokens,
-            timeout=60,            # R1 推理需要更长时间
+            timeout=60,  # R1 推理需要更长时间
             max_retries=settings.max_retries,
         )
 
@@ -158,6 +160,7 @@ class ModelTierRouter:
 #  Prompt 压缩
 # ------------------------------------------------------------------ #
 
+
 class PromptCompressor:
     """
     Prompt 压缩器 — 减少 token 消耗
@@ -171,11 +174,11 @@ class PromptCompressor:
 
     # 各场景的 context 最大长度 (字符数)
     MAX_CONTEXT_LENGTH = {
-        "search": 2000,      # 搜索结果
-        "kg_qa": 3000,       # KG 查询结果
-        "recommend": 2000,   # 推荐候选
-        "cs": 1500,          # FAQ context
-        "analytics": 3000,   # 分析数据
+        "search": 2000,  # 搜索结果
+        "kg_qa": 3000,  # KG 查询结果
+        "recommend": 2000,  # 推荐候选
+        "cs": 1500,  # FAQ context
+        "analytics": 3000,  # 分析数据
         "default": 2000,
     }
 
@@ -183,13 +186,14 @@ class PromptCompressor:
     def compress_whitespace(cls, text: str) -> str:
         """压缩多余空白"""
         import re
+
         # 连续空行 → 单空行
-        text = re.sub(r'\n{3,}', '\n\n', text)
+        text = re.sub(r"\n{3,}", "\n\n", text)
         # 行首行尾空白
-        lines = [line.strip() for line in text.split('\n')]
+        lines = [line.strip() for line in text.split("\n")]
         # 连续空格 → 单空格
-        text = '\n'.join(lines)
-        text = re.sub(r' {2,}', ' ', text)
+        text = "\n".join(lines)
+        text = re.sub(r" {2,}", " ", text)
         return text.strip()
 
     @classmethod
@@ -206,7 +210,8 @@ class PromptCompressor:
         if isinstance(data, list):
             cleaned = [
                 {k: v for k, v in item.items() if v is not None and v != "" and v != []}
-                for item in data if isinstance(item, dict)
+                for item in data
+                if isinstance(item, dict)
             ]
         elif isinstance(data, dict):
             cleaned = {k: v for k, v in data.items() if v is not None and v != "" and v != []}
@@ -228,6 +233,7 @@ class PromptCompressor:
 #  多级缓存
 # ------------------------------------------------------------------ #
 
+
 class DiskCache:
     """L2 磁盘缓存 — 持久化存储"""
 
@@ -247,7 +253,9 @@ class DiskCache:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             # 检查 TTL
-            if time.time() - data.get("timestamp", 0) > settings.cache_ttl_seconds * 6:  # L2 TTL 更长
+            if (
+                time.time() - data.get("timestamp", 0) > settings.cache_ttl_seconds * 6
+            ):  # L2 TTL 更长
                 return None
             return data.get("value")
         except Exception:
@@ -364,7 +372,9 @@ class SemanticCache:
         return {
             "semantic_hits": self._semantic_hits,
             "semantic_misses": self._semantic_misses,
-            "semantic_hit_rate": f"{self._semantic_hits / total * 100:.1f}%" if total > 0 else "N/A",
+            "semantic_hit_rate": f"{self._semantic_hits / total * 100:.1f}%"
+            if total > 0
+            else "N/A",
             "semantic_cache_size": len(self._store),
             "threshold": self._threshold,
         }
@@ -463,6 +473,7 @@ class MultiLevelCache:
 # ------------------------------------------------------------------ #
 #  统一成本优化入口
 # ------------------------------------------------------------------ #
+
 
 class CostOptimizer:
     """

@@ -13,16 +13,18 @@
 使用方法:
     python tests/evaluate.py
 """
-import sys
-import os
+
 import json
+import os
+import sys
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from config.settings import settings
 from langchain_openai import ChatOpenAI
+
+from config.settings import settings
 
 
 class AgentEvaluator:
@@ -55,8 +57,7 @@ class AgentEvaluator:
 
         # 构建批量评估 prompt — 一次调用评估所有 5 个维度
         criteria_desc = "\n".join(
-            f"  - {criterion}: {desc}"
-            for criterion, desc in self.EVAL_CRITERIA.items()
+            f"  - {criterion}: {desc}" for criterion, desc in self.EVAL_CRITERIA.items()
         )
 
         prompt = f"""作为电商智能体评估专家，请对以下回答进行多维度评分。
@@ -92,6 +93,7 @@ Agent回答: {answer}
         except json.JSONDecodeError:
             # JSON 解析失败，尝试提取数字
             import re
+
             match = re.search(r"(\d+\.?\d*)", locals().get("result", ""))
             score = float(match.group(1)) if match else 0
             for criterion in self.EVAL_CRITERIA:

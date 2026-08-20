@@ -17,27 +17,29 @@
     obs.log_event("search_completed", {"query": "...", "results": 10})
     obs.record_tokens(model="deepseek-chat", prompt_tokens=100, completion_tokens=50)
 """
-import os
+
+import functools
 import json
+import logging
+import os
 import time
 import uuid
-import logging
-import functools
-from typing import Any, Optional, Dict
+from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from collections import defaultdict
+from typing import Any, Optional
 
 from config.settings import settings
-
 
 # ------------------------------------------------------------------ #
 #  Token 用量追踪
 # ------------------------------------------------------------------ #
 
+
 @dataclass
 class TokenUsage:
     """单次 LLM 调用的 token 用量"""
+
     model: str
     prompt_tokens: int = 0
     completion_tokens: int = 0
@@ -67,10 +69,15 @@ class TokenTracker:
 
     def __init__(self):
         self._usage: list[TokenUsage] = []
-        self._by_model: dict[str, dict] = defaultdict(lambda: {
-            "prompt_tokens": 0, "completion_tokens": 0,
-            "total_tokens": 0, "cost_usd": 0.0, "calls": 0
-        })
+        self._by_model: dict[str, dict] = defaultdict(
+            lambda: {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost_usd": 0.0,
+                "calls": 0,
+            }
+        )
 
     def record(self, model: str, prompt_tokens: int = 0, completion_tokens: int = 0):
         """记录一次 LLM 调用的 token 用量"""
@@ -108,6 +115,7 @@ class TokenTracker:
 #  结构化日志
 # ------------------------------------------------------------------ #
 
+
 class StructuredLogger:
     """结构化 JSON 日志记录器"""
 
@@ -119,10 +127,11 @@ class StructuredLogger:
         # 避免重复添加 handler
         if not self.logger.handlers:
             handler = logging.StreamHandler()
-            handler.setFormatter(logging.Formatter(
-                '%(asctime)s | %(levelname)-7s | %(message)s',
-                datefmt='%Y-%m-%d %H:%M:%S'
-            ))
+            handler.setFormatter(
+                logging.Formatter(
+                    "%(asctime)s | %(levelname)-7s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+                )
+            )
             self.logger.addHandler(handler)
 
     def _log(self, level: str, message: str, **context):
@@ -152,9 +161,11 @@ class StructuredLogger:
 #  链路追踪上下文
 # ------------------------------------------------------------------ #
 
+
 @dataclass
 class TraceSpan:
     """单个追踪 span"""
+
     trace_id: str
     span_id: str
     name: str
@@ -171,11 +182,13 @@ class TraceSpan:
         return (end - self.start_time) * 1000
 
     def add_event(self, name: str, **attrs):
-        self.events.append({
-            "name": name,
-            "ts": time.time(),
-            "attrs": attrs,
-        })
+        self.events.append(
+            {
+                "name": name,
+                "ts": time.time(),
+                "attrs": attrs,
+            }
+        )
 
     def set_attribute(self, key: str, value: Any):
         self.attributes[key] = value
@@ -193,7 +206,7 @@ class TraceContext:
     _trace_id: Optional[str] = None
 
     @classmethod
-    def start_trace(cls, name: str) -> 'TraceSpan':
+    def start_trace(cls, name: str) -> "TraceSpan":
         """启动一个新的追踪"""
         cls._trace_id = str(uuid.uuid4())
         span = TraceSpan(
@@ -249,6 +262,7 @@ class TraceContext:
 #  可观测性统一入口
 # ------------------------------------------------------------------ #
 
+
 class Observability:
     """可观测性统一入口"""
 
@@ -268,7 +282,9 @@ class Observability:
             self._langsmith_enabled = True
             self.logger.info("LangSmith tracing 已启用", project=settings.langsmith_project)
         else:
-            self.logger.info("LangSmith tracing 未启用 (设置 TRACING_ENABLED=true 和 LANGSMITH_API_KEY 启用)")
+            self.logger.info(
+                "LangSmith tracing 未启用 (设置 TRACING_ENABLED=true 和 LANGSMITH_API_KEY 启用)"
+            )
 
     @property
     def langsmith_enabled(self) -> bool:
@@ -283,6 +299,7 @@ class Observability:
         @obs.trace("search_agent")
         def search(query): ...
         """
+
         def decorator(func):
             @functools.wraps(func)
             def wrapper(*args, **kwargs):
@@ -297,11 +314,14 @@ class Observability:
                     span.set_attribute("error", str(e))
                     self.logger.error(f"{name} 执行失败", error=str(e), span_id=span.span_id)
                     raise
+
             return wrapper
+
         return decorator
 
     def trace_async(self, name: str):
         """异步版本追踪装饰器"""
+
         def decorator(func):
             @functools.wraps(func)
             async def wrapper(*args, **kwargs):
@@ -316,7 +336,9 @@ class Observability:
                     span.set_attribute("error", str(e))
                     self.logger.error(f"{name} 执行失败", error=str(e), span_id=span.span_id)
                     raise
+
             return wrapper
+
         return decorator
 
     # --- 事件记录 ---

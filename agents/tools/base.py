@@ -2,8 +2,9 @@
 共享工具基类
 所有子 Agent 和可复用工具继承此类，统一接口规范
 """
+
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 
 class BaseAgentTool(ABC):

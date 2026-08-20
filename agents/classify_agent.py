@@ -6,9 +6,11 @@
 
 学习参考: product_classification/src/web/service.py
 """
+
 import os
+from typing import List
+
 import torch
-from typing import List, Optional
 
 from agents.tools.base import BaseAgentTool
 
@@ -22,10 +24,7 @@ class ClassifyAgent(BaseAgentTool):
     """
 
     name: str = "classify_agent"
-    description: str = (
-        "商品分类：根据商品标题文本自动分类到15个商品类别之一，"
-        "返回分类结果和置信度"
-    )
+    description: str = "商品分类：根据商品标题文本自动分类到15个商品类别之一，返回分类结果和置信度"
 
     def __init__(self, model_path: str, labels_path: str):
         super().__init__()
@@ -47,7 +46,7 @@ class ClassifyAgent(BaseAgentTool):
         if self._model is not None:
             return
 
-        from transformers import AutoTokenizer, AutoModelForSequenceClassification
+        from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
         # 加载标签
         if os.path.exists(self.labels_path):
@@ -61,9 +60,7 @@ class ClassifyAgent(BaseAgentTool):
         if os.path.exists(self.model_path):
             print(f"[ClassifyAgent] 加载模型: {self.model_path}")
             self._tokenizer = AutoTokenizer.from_pretrained(self.model_path)
-            self._model = AutoModelForSequenceClassification.from_pretrained(
-                self.model_path
-            )
+            self._model = AutoModelForSequenceClassification.from_pretrained(self.model_path)
             self._model.to(self._device)
             self._model.eval()
             print(f"[ClassifyAgent] 模型加载完成，共 {len(self._labels)} 个类别")
@@ -76,9 +73,21 @@ class ClassifyAgent(BaseAgentTool):
     def _default_labels(self) -> List[str]:
         """默认 15 类商品标签（与训练模型一致）"""
         return [
-            "医药保健", "图书音像", "宠物用品", "家居家装", "家用电器",
-            "手机数码", "服装鞋包", "母婴用品", "汽车用品", "珠宝首饰",
-            "礼品鲜花", "箱包配饰", "美妆护肤", "运动户外", "食品生鲜",
+            "医药保健",
+            "图书音像",
+            "宠物用品",
+            "家居家装",
+            "家用电器",
+            "手机数码",
+            "服装鞋包",
+            "母婴用品",
+            "汽车用品",
+            "珠宝首饰",
+            "礼品鲜花",
+            "箱包配饰",
+            "美妆护肤",
+            "运动户外",
+            "食品生鲜",
         ]
 
     # ------------------------------------------------------------------ #
@@ -150,9 +159,7 @@ class ClassifyAgent(BaseAgentTool):
                     "category": self._labels[idx],
                     "confidence": f"{conf:.2%}",
                 }
-                for idx, conf in zip(
-                    top_k_result.indices[0], top_k_result.values[0]
-                )
+                for idx, conf in zip(top_k_result.indices[0], top_k_result.values[0])
             ]
         else:
             # 降级
@@ -190,18 +197,106 @@ class ClassifyAgent(BaseAgentTool):
             "医药保健": ["药", "保健品", "维生素", "保健", "医用", "口罩", "创可贴", "血压"],
             "图书音像": ["书", "图书", "小说", "教材", "杂志", "CD", "DVD", "音像", "电子书"],
             "宠物用品": ["宠物", "狗粮", "猫粮", "猫砂", "狗", "猫", "鱼缸", "鸟笼", "宠物玩具"],
-            "家居家装": ["床品", "枕头", "被子", "毛巾", "窗帘", "地毯", "灯", "装饰", "收纳", "墙纸", "装修"],
+            "家居家装": [
+                "床品",
+                "枕头",
+                "被子",
+                "毛巾",
+                "窗帘",
+                "地毯",
+                "灯",
+                "装饰",
+                "收纳",
+                "墙纸",
+                "装修",
+            ],
             "家用电器": ["冰箱", "洗衣机", "空调", "电视", "微波炉", "电饭煲", "吸尘器", "电磁炉"],
-            "手机数码": ["手机", "平板", "相机", "耳机", "充电器", "数据线", "蓝牙", "音箱", "键盘", "鼠标", "显示器", "打印机", "电脑", "笔记本"],
-            "服装鞋包": ["衣服", "衬衫", "裤子", "T恤", "裙子", "内衣", "文胸", "鞋", "靴", "包", "箱", "背包", "手提", "外套", "夹克"],
+            "手机数码": [
+                "手机",
+                "平板",
+                "相机",
+                "耳机",
+                "充电器",
+                "数据线",
+                "蓝牙",
+                "音箱",
+                "键盘",
+                "鼠标",
+                "显示器",
+                "打印机",
+                "电脑",
+                "笔记本",
+            ],
+            "服装鞋包": [
+                "衣服",
+                "衬衫",
+                "裤子",
+                "T恤",
+                "裙子",
+                "内衣",
+                "文胸",
+                "鞋",
+                "靴",
+                "包",
+                "箱",
+                "背包",
+                "手提",
+                "外套",
+                "夹克",
+            ],
             "母婴用品": ["婴儿", "纸尿裤", "奶瓶", "奶粉", "婴儿车", "孕", "宝宝", "母婴", "童装"],
-            "汽车用品": ["汽车", "车载", "轮胎", "车膜", "行车记录仪", "车充", "座垫", "机油", "壳牌"],
+            "汽车用品": [
+                "汽车",
+                "车载",
+                "轮胎",
+                "车膜",
+                "行车记录仪",
+                "车充",
+                "座垫",
+                "机油",
+                "壳牌",
+            ],
             "珠宝首饰": ["珠宝", "首饰", "项链", "戒指", "耳环", "手镯", "黄金", "钻石", "银饰"],
             "礼品鲜花": ["礼品", "礼物", "鲜花", "花束", "贺卡", "包装", "礼盒"],
             "箱包配饰": ["箱包", "钱包", "皮带", "围巾", "帽子", "手套", "眼镜", "手表", "配饰"],
-            "美妆护肤": ["面膜", "口红", "粉底", "精华", "乳液", "化妆", "护肤", "香水", "防晒", "洁面"],
-            "运动户外": ["运动", "健身", "跑步", "瑜伽", "户外", "露营", "帐篷", "登山", "骑行", "球拍"],
-            "食品生鲜": ["食品", "零食", "水果", "蔬菜", "海鲜", "牛肉", "猪肉", "牛奶", "饮料", "茶叶", "坚果", "巧克力"],
+            "美妆护肤": [
+                "面膜",
+                "口红",
+                "粉底",
+                "精华",
+                "乳液",
+                "化妆",
+                "护肤",
+                "香水",
+                "防晒",
+                "洁面",
+            ],
+            "运动户外": [
+                "运动",
+                "健身",
+                "跑步",
+                "瑜伽",
+                "户外",
+                "露营",
+                "帐篷",
+                "登山",
+                "骑行",
+                "球拍",
+            ],
+            "食品生鲜": [
+                "食品",
+                "零食",
+                "水果",
+                "蔬菜",
+                "海鲜",
+                "牛肉",
+                "猪肉",
+                "牛奶",
+                "饮料",
+                "茶叶",
+                "坚果",
+                "巧克力",
+            ],
         }
 
         title_lower = title.lower()
@@ -230,8 +325,7 @@ class ClassifyAgent(BaseAgentTool):
 
         # 去除明显的特殊字符（保留中文、英文、数字、基本标点）
         text = "".join(
-            c for c in text
-            if c.isalnum() or c in " ()（）【】[]-—_/,，.。;；:：!！?？%％+"
+            c for c in text if c.isalnum() or c in " ()（）【】[]-—_/,，.。;；:：!！?？%％+"
         )
 
         return text.strip()

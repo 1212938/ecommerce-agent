@@ -308,6 +308,8 @@ ecommerce-agent/
 │   ├── memory_store/            # ★ 记忆持久化存储
 │   ├── cache/                   # ★ 磁盘缓存
 │   └── processed/               # 数据产物（gitignored，由脚本生成）
+├── docs/
+│   └── ARCHITECTURE.md          # 系统架构设计文档
 ├── scripts/
 ├── requirements.txt
 ├── docker-compose.yml
